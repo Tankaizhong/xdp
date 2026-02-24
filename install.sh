@@ -1,158 +1,140 @@
 #!/bin/bash
 
-# XDP项目依赖安装脚本
+# XDP项目依赖下载脚本
+# 下载预编译的libbpf库到项目目录
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIBBPF_DIR="$SCRIPT_DIR/libbpf"
+
 echo "========================================"
-echo "  XDP项目依赖安装脚本"
+echo "  XDP项目 libbpf 下载脚本"
 echo "========================================"
+echo "项目目录: $SCRIPT_DIR"
 
-# 检测Linux发行版
-detect_os() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        case "$ID" in
-            ubuntu|debian)
-                echo "ubuntu"
-                ;;
-            centos|rhel|rocky|alma)
-                echo "centos"
-                ;;
-            *)
-                echo "unknown"
-                ;;
-        esac
-    else
-        echo "unknown"
-    fi
+# 检测架构
+detect_arch() {
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64)
+            echo "x86_64"
+            ;;
+        aarch64|arm64)
+            echo "aarch64"
+            ;;
+        *)
+            echo "$arch"
+            ;;
+    esac
 }
 
-# Ubuntu/Debian 安装
-install_ubuntu() {
-    echo "检测到 Ubuntu/Debian 系统"
-    echo "正在更新软件包列表..."
+# 下载libbpf
+download_libbpf() {
+    local version="1.4.0"
+    local arch=$(detect_arch)
+    local lib_dir="$LIBBPF_DIR/src"
 
-    sudo apt-get update
+    echo ""
+    echo "下载 libbpf v$version ($arch)..."
 
-    echo "正在安装编译工具和依赖..."
-    sudo apt-get install -y \
-        clang \
-        llvm \
-        make \
-        gcc \
-        libbpf-dev \
-        pkg-config \
-        linux-headers-$(uname -r) \
-        libelf-dev \
-        libc6-dev \
-        binutils-dev \
-        python3
+    # 创建目录
+    mkdir -p "$lib_dir"
 
-    echo "依赖安装完成!"
+    # 下载源码
+    local tarball="v$version.tar.gz"
+    local url="https://github.com/libbpf/libbpf/archive/refs/tags/$tarball"
+
+    echo "从 GitHub 下载: $url"
+    wget -q --show-progress -O "/tmp/libbpf-$tarball" "$url"
+
+    # 解压
+    echo "解压..."
+    tar -xzf "/tmp/libbpf-$tarball" -C /tmp/
+
+    # 复制源码
+    rm -rf "$LIBBPF_DIR"
+    mv "/tmp/libbpf-$version" "$LIBBPF_DIR"
+
+    # 清理
+    rm -f "/tmp/libbpf-$tarball"
+
+    echo "下载完成: $LIBBPF_DIR"
 }
 
-# CentOS/RHEL 安装
-install_centos() {
-    echo "检测到 CentOS/RHEL 系统"
-    echo "正在安装编译工具和依赖..."
-
-    sudo yum install -y \
-        clang \
-        llvm \
-        make \
-        gcc \
-        pkgconfig \
-        elfutils-libelf-devel \
-        elfutils-devel \
-        python3
-
-    # 根据不同版本安装libbpf
-    if command -v dnf &> /dev/null; then
-        sudo dnf install -y libbpf-devel kernel-headers-$(uname -r)
-    else
-        sudo yum install -y libbpf-devel kernel-headers-$(uname -r)
-    fi
-
-    echo "依赖安装完成!"
-}
-
-# 检查依赖是否已安装
-check_dependencies() {
+# 编译libbpf
+build_libbpf() {
     echo ""
     echo "========================================"
-    echo "  检查依赖"
+    echo "  编译 libbpf"
     echo "========================================"
 
-    local missing=0
+    cd "$LIBBPF_DIR/src"
 
-    check_cmd() {
-        if command -v "$1" &> /dev/null; then
-            echo "[OK] $1 已安装: $($1 --version 2>/dev/null | head -1 || echo "installed")"
-        else
-            echo "[MISSING] $1 未安装"
-            missing=1
-        fi
-    }
+    # 清理
+    make clean 2>/dev/null || true
 
-    check_cmd clang
-    check_cmd llvm-config || check_cmd llvm-config-14 || check_cmd llvm-config-15 || check_cmd llvm-config-16
-    check_cmd make
-    check_cmd gcc || check_cmd gcc-minimal
-    check_cmd pkg-config
+    # 编译静态库
+    echo "编译中..."
+    make -j$(nproc)
 
-    # 检查libbpf
-    if pkg-config --exists libbpf 2>/dev/null; then
-        echo "[OK] libbpf 已安装: $(pkg-config --modversion libbpf)"
+    # 设置RPATH
+    echo "完成!"
+
+    cd "$SCRIPT_DIR"
+}
+
+# 检查
+check_libbpf() {
+    echo ""
+    echo "========================================"
+    echo "  检查 libbpf"
+    echo "========================================"
+
+    if [ -f "$LIBBPF_DIR/src/libbpf.a" ]; then
+        echo "[OK] libbpf.a 已就绪"
+        ls -lh "$LIBBPF_DIR/src/libbpf.a"
     else
-        echo "[MISSING] libbpf 未安装"
-        missing=1
+        echo "[MISSING] libbpf.a 未找到"
+        return 1
     fi
 
-    # 检查内核头文件
-    if [ -d "/lib/modules/$(uname -r)/build" ]; then
-        echo "[OK] 内核头文件已安装: $(uname -r)"
+    if [ -f "$LIBBPF_DIR/src/bpf/libbpf.h" ]; then
+        echo "[OK] 头文件已就绪"
     else
-        echo "[MISSING] 内核头文件未安装"
-        missing=1
+        echo "[MISSING] 头文件未找到"
+        return 1
     fi
 
-    if [ $missing -eq 0 ]; then
-        echo ""
-        echo "所有依赖已安装!"
-    else
-        echo ""
-        echo "部分依赖缺失，请运行本脚本安装"
-    fi
+    echo ""
+    echo "libbpf 已准备完毕!"
 }
 
 # 主函数
 main() {
-    local os_type=$(detect_os)
+    # 检查是否已存在
+    if [ -f "$LIBBPF_DIR/src/libbpf.a" ]; then
+        echo "libbpf 已存在，跳过下载"
+        check_libbpf
+        return
+    fi
 
-    case "$os_type" in
-        ubuntu)
-            install_ubuntu
-            ;;
-        centos)
-            install_centos
-            ;;
-        *)
-            echo "不支持的操作系统，请手动安装依赖"
-            echo ""
-            echo "Ubuntu/Debian:"
-            echo "  sudo apt-get update"
-            echo "  sudo apt-get install -y clang llvm make gcc libbpf-dev pkg-config linux-headers-\$(uname -r)"
-            echo ""
-            echo "CentOS/RHEL:"
-            echo "  sudo yum install -y clang llvm make gcc pkgconfig"
-            echo "  sudo yum install -y libbpf-devel kernel-headers"
-            exit 1
-            ;;
-    esac
+    # 下载
+    download_libbpf
 
-    # 验证安装
-    check_dependencies
+    # 编译
+    build_libbpf
+
+    # 检查
+    check_libbpf
+
+    echo ""
+    echo "========================================"
+    echo "  完成!"
+    echo "========================================"
+    echo ""
+    echo "编译项目:"
+    echo "  make clean && make all"
 }
 
 # 显示帮助
@@ -160,18 +142,20 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "用法: $0 [选项]"
     echo ""
     echo "选项:"
-    echo "  -h, --help    显示帮助信息"
-    echo "  -c, --check   仅检查依赖状态"
-    echo ""
-    echo "示例:"
-    echo "  $0            安装所有依赖"
-    echo "  $0 --check    检查依赖是否已安装"
+    echo "  -h, --help    显示帮助"
+    echo "  -c, --check   检查状态"
+    echo "  -r, --rebuild 重新下载编译"
     exit 0
+fi
+
+# 重建模式
+if [ "$1" = "-r" ] || [ "$1" = "--rebuild" ]; then
+    rm -rf "$LIBBPF_DIR"
 fi
 
 # 检查模式
 if [ "$1" = "-c" ] || [ "$1" = "--check" ]; then
-    check_dependencies
+    check_libbpf
 else
     main
 fi

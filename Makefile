@@ -1,13 +1,16 @@
 # Makefile for XDP Cluster Forwarding Project
 
+# 项目目录
+SCRIPT_DIR := $(shell pwd)
+LIBBPF_DIR := $(SCRIPT_DIR)/libbpf
+
 # 编译器
 CC = clang
 LD = ld
-PKG_CONFIG = pkg-config
 
-# 编译选项
-CFLAGS = -Wall -O2 -g
-LDFLAGS = -lelf -lbpf -lpthread
+# 编译选项 - 使用本地libbpf
+CFLAGS = -Wall -O2 -g -I$(LIBBPF_DIR)/src -I/usr/include
+LDFLAGS = -lelf -lpthread -L$(LIBBPF_DIR)/src $(LIBBPF_DIR)/src/libbpf.a
 
 # 目标文件
 TARGET = xdp_controller
@@ -18,7 +21,7 @@ BPF_TARGET = xdp_kern.o
 BPF_CFLAGS = -Wno-unused-value -Wno-pointer-sign \
              -Wno-compare-distinct-pointer-types \
              -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/') \
-             -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
+             -I$(LIBBPF_DIR)/src -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
 
 # 头文件
 HEADERS = common.h
@@ -65,6 +68,11 @@ uninstall:
 # 重新编译
 rebuild: clean all
 
+# 下载并编译依赖
+deps:
+	@echo "下载 libbpf..."
+	./脚本.sh
+
 # 帮助
 help:
 	@echo "XDP Cluster Forwarding Project"
@@ -78,10 +86,11 @@ help:
 	@echo "  install     - Install binaries"
 	@echo "  uninstall   - Uninstall binaries"
 	@echo "  rebuild     - Clean and rebuild"
+	@echo "  deps        - Download and build libbpf"
 	@echo ""
 	@echo "Usage:"
+	@echo "  make deps               # Download libbpf"
 	@echo "  make                    # Build everything"
 	@echo "  make clean              # Clean build artifacts"
-	@echo "  sudo make install       # Install to system"
 
-.PHONY: all clean install uninstall rebuild help
+.PHONY: all clean install uninstall rebuild help deps
