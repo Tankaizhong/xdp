@@ -8,9 +8,9 @@ LIBBPF_DIR := $(SCRIPT_DIR)/lib/libbpf
 CC = clang
 LD = ld
 
-# 编译选项 - 使用本地libbpf
+# 编译选项 - 使用系统libbpf
 CFLAGS = -Wall -O2 -g -I$(LIBBPF_DIR)/src -I/usr/include
-LDFLAGS = -lelf -lpthread -L$(LIBBPF_DIR)/src $(LIBBPF_DIR)/src/libbpf.a
+LDFLAGS = -lelf -lpthread -lz -lbpf
 
 # 目标文件
 TARGET = xdp_controller

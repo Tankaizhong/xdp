@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     libelf-dev \
     libbpf-dev \
     linux-tools-generic \
-    linux-headers-$(uname -r) \
     iproute2 \
     iputils-ping \
     tcpdump \
@@ -29,6 +28,9 @@ COPY . .
 # 复制 libbpf 头文件
 RUN mkdir -p /usr/include/bpf && \
     cp lib/libbpf/src/*.h /usr/include/bpf/ 2>/dev/null || true
+
+# 编译 libbpf
+RUN cd lib/libbpf/src && make
 
 # 编译项目
 RUN make clean && make all || echo "Build may require libbpf"

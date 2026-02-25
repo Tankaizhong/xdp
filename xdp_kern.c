@@ -3,9 +3,28 @@
  */
 
 #include <linux/bpf.h>
+#include <linux/in.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include "common.h"
+
+/* 协议定义 - 直接使用数值避免头文件问题 */
+#ifndef IPPROTO_TCP
+#define IPPROTO_TCP 6
+#endif
+#ifndef IPPROTO_UDP
+#define IPPROTO_UDP 17
+#endif
+
+/* bpf_map_def 定义 - 兼容旧版 libbpf */
+#ifndef bpf_map_def
+struct bpf_map_def {
+    unsigned int type;
+    unsigned int key_size;
+    unsigned int value_size;
+    unsigned int max_entries;
+};
+#endif
 
 /* 声明 eBPF Maps */
 struct bpf_map_def SEC("maps") flow_table = {

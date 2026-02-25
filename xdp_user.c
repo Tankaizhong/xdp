@@ -64,13 +64,26 @@ static int load_bpf_object(const char *filename)
     prog_fd = bpf_program__fd(prog);
 
     /* 获取Map fd */
-    map_fd = bpf_map__fd(bpf_map__find_by_name(bpf_obj, "flow_table"));
+    struct bpf_map *map;
+    map = NULL;
+    while ((map = bpf_map__next(map, bpf_obj))) {
+        if (strcmp(bpf_map__name(map), "flow_table") == 0) {
+            map_fd = bpf_map__fd(map);
+            break;
+        }
+    }
     if (map_fd < 0) {
         fprintf(stderr, "Error: Failed to get flow_table map fd\n");
         return -1;
     }
 
-    stats_fd = bpf_map__fd(bpf_map__find_by_name(bpf_obj, "stats_map"));
+    map = NULL;
+    while ((map = bpf_map__next(map, bpf_obj))) {
+        if (strcmp(bpf_map__name(map), "stats_map") == 0) {
+            stats_fd = bpf_map__fd(map);
+            break;
+        }
+    }
     if (stats_fd < 0) {
         fprintf(stderr, "Error: Failed to get stats_map map fd\n");
         return -1;
@@ -191,6 +204,7 @@ static void show_stats(void)
 static void show_flow_table(void)
 {
     struct flow_key key;
+    struct flow_key prev_key;
     struct forward_entry entry;
     __u32 prev = 0;
     int count = 0;
@@ -204,7 +218,7 @@ static void show_flow_table(void)
                    &key.dst_ip, ntohs(key.dst_port), key.proto,
                    entry.dst_mac, entry.action);
         }
-        prev = key;
+        memcpy(&prev_key, &key, sizeof(prev_key));
     }
 
     if (count == 0) {
