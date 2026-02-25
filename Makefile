@@ -3,8 +3,8 @@
 
 # 项目目录
 SCRIPT_DIR := $(shell pwd)
-LIBBPF_DIR := $(SCRIPT_DIR)/lib/libbpf
 XDP_TOOLS_DIR := $(SCRIPT_DIR)/lib/xdp-tools
+LIBBPF_DIR := $(XDP_TOOLS_DIR)/lib/libbpf
 LIBXDP_DIR := $(XDP_TOOLS_DIR)/lib/libxdp
 
 # 编译器
@@ -33,6 +33,9 @@ BPF_CFLAGS = -Wno-unused-value -Wno-pointer-sign \
              -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/') \
              -I$(LIBBPF_DIR)/src \
              -I$(XDP_TOOLS_DIR)/headers \
+             -I$(XDP_TOOLS_DIR)/headers/bpf \
+             -I$(XDP_TOOLS_DIR)/headers/linux \
+             -I$(XDP_TOOLS_DIR)/headers/xdp \
              -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
 
 # 头文件
