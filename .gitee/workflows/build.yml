@@ -1,0 +1,36 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t xdp-test:latest .
+
+      - name: Verify build artifacts
+        run: |
+          docker run --rm xdp-test:latest bash -c "ls -la /workspace/xdp/*.o /workspace/xdp/xdp_* 2>/dev/null"
+
+      - name: Check BPF object
+        run: |
+          docker run --rm xdp-test:latest bash -c "file /workspace/xdp/xdp_kern.o"
+
+      - name: Show kernel version
+        run: |
+          docker run --rm xdp-test:latest bash -c "uname -r"
