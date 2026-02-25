@@ -1,2 +1,9 @@
 .claude/
 .vscode/
+*.o
+*.so
+xdp_user
+af_xdp_user
+xdp_controller
+af_xdp_forwarder
+xdp_kern.o

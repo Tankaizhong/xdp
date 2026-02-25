@@ -1,117 +1,130 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for XDP Cluster Forwarding Project
-# 使用 xdp-tools
 
-# 项目目录
-SCRIPT_DIR := $(shell pwd)
-XDP_TOOLS_DIR := $(SCRIPT_DIR)/lib/xdp-tools
-LIBBPF_DIR := $(XDP_TOOLS_DIR)/lib/libbpf
-LIBXDP_DIR := $(XDP_TOOLS_DIR)/lib/libxdp
+# Project directories
+LIB_DIR = ./lib
+XDP_TOOLS_DIR = $(LIB_DIR)/xdp-tools
+COMMON_DIR = $(LIB_DIR)/common
 
-# 编译器
-CC = clang
-LD = ld
+# Toolchain
+CC ?= gcc
+CLANG ?= clang
 
-# 编译选项 - 使用 xdp-tools 和 libbpf
-CFLAGS = -Wall -O2 -g \
-         -I$(LIBBPF_DIR)/src \
-         -I$(XDP_TOOLS_DIR)/headers \
-         -I$(XDP_TOOLS_DIR)/headers/bpf \
-         -I$(XDP_TOOLS_DIR)/headers/linux \
-         -I$(XDP_TOOLS_DIR)/headers/xdp \
-         -I/usr/include
+# Define targets
+XDP_TARGETS = xdp_kern
+USER_TARGETS = xdp_user af_xdp_user
 
-# 链接选项 - libxdp 依赖 libbpf，所以 libbpf 要放后面
-LDFLAGS = -lelf -lpthread -lz \
-          $(LIBXDP_DIR)/libxdp.a \
-          $(LIBBPF_DIR)/src/libbpf.a
+# Verbose control
+ifeq ("$(origin V)", "command line")
+VERBOSE = $(V)
+endif
+ifndef VERBOSE
+VERBOSE = 0
+endif
+ifeq ($(VERBOSE),0)
+MAKEFLAGS += --no-print-directory
+Q = @
+QUIET_CC = @echo '    CC       '$@;
+QUIET_CLANG = @echo '    CLANG    '$@;
+else
+Q =
+QUIET_CC =
+QUIET_CLANG =
+endif
 
-# 目标文件
-TARGET = xdp_controller
-AF_XDP_TARGET = af_xdp_forwarder
-BPF_TARGET = xdp_kern.o
+# Include config from xdp-tools
+include $(XDP_TOOLS_DIR)/config.mk
 
-# BPF编译选项
-BPF_CFLAGS = -Wno-unused-value -Wno-pointer-sign \
-             -Wno-compare-distinct-pointer-types \
-             -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/') \
-             -I$(LIBBPF_DIR)/src \
-             -I$(XDP_TOOLS_DIR)/headers \
-             -I$(XDP_TOOLS_DIR)/headers/bpf \
-             -I$(XDP_TOOLS_DIR)/headers/linux \
-             -I$(XDP_TOOLS_DIR)/headers/xdp \
-             -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
+# Extra includes
+BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
+BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/headers
+BPF_CFLAGS += $(ARCH_INCLUDES)
 
-# 头文件
-HEADERS = common.h
+CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
+CFLAGS += -I$(XDP_TOOLS_DIR)/headers
+CFLAGS += -I$(COMMON_DIR)
 
-# 默认目标
-all: $(BPF_TARGET) $(TARGET) $(AF_XDP_TARGET)
+# Link flags - use config.mk settings and add required libs
+LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libbpf/src
+LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libxdp
+# libxdp depends on libbpf, order matters for static linking
+LDLIBS += -l:libxdp.a -l:libbpf.a -lelf -lz -lpthread
 
-# 编译BPF程序
-$(BPF_TARGET): xdp_kern.c $(HEADERS)
-	@echo "Building BPF object..."
-	$(CC) $(BPF_CFLAGS) -target bpf -c $< -o $@
-	@echo "BPF object built: $@"
+# Common objects
+COMMON_OBJS = $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_user_bpf_xdp.o
 
-# 编译用户态控制器
-$(TARGET): xdp_user.c $(HEADERS) $(LIBBPF_DIR)/src/libbpf.a $(LIBXDP_DIR)/libxdp.a
-	@echo "Building XDP controller..."
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-	@echo "XDP controller built: $@"
+# Library objects - libxdp depends on libbpf, so libbpf must come after libxdp
+LIB_OBJS = $(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a \
+	   $(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a
 
-# 编译AF_XDP程序
-$(AF_XDP_TARGET): af_xdp_user.c $(HEADERS) $(LIBBPF_DIR)/src/libbpf.a
-	@echo "Building AF_XDP forwarder..."
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-	@echo "AF_XDP forwarder built: $@"
+# Create expansions
+XDP_OBJ = xdp_kern.o
 
-# 构建 libbpf（如果不存在）
-$(LIBBPF_DIR)/src/libbpf.a:
+# Default target
+all: lib $(USER_TARGETS) $(XDP_OBJ)
+
+# Build common library
+lib:
+	@echo "Building common library..."
+	$(MAKE) -C $(COMMON_DIR)
+
+# Ensure libbpf is built
+$(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a:
 	@echo "Building libbpf..."
-	cd $(LIBBPF_DIR)/src && make
+	$(MAKE) -C $(XDP_TOOLS_DIR)/lib/libbpf/src
 
-# 构建 libxdp（如果不存在）
-$(LIBXDP_DIR)/libxdp.a:
+# Ensure libxdp is built
+$(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a:
 	@echo "Building libxdp..."
-	cd $(LIBXDP_DIR) && make
+	$(MAKE) -C $(XDP_TOOLS_DIR)/lib/libxdp
 
-# 清理
+# Build BPF object
+xdp_kern.o: xdp_kern.c $(LIB_OBJS) Makefile
+	$(QUIET_CLANG)$(CLANG) -target bpf $(BPF_CFLAGS) -O2 -c -g -o $@ $<
+
+# Build xdp_user
+xdp_user: xdp_user.c common.h $(COMMON_OBJS) $(LIB_OBJS) Makefile
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ xdp_user.c $(COMMON_OBJS) $(LDLIBS)
+
+# Build af_xdp_user
+af_xdp_user: af_xdp_user.c common.h $(COMMON_OBJS) $(LIB_OBJS) Makefile
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ af_xdp_user.c $(COMMON_OBJS) $(LDLIBS)
+
+# Clean
 clean:
-	rm -f $(BPF_TARGET) $(TARGET) $(AF_XDP_TARGET)
-	rm -f *.o
+	$(Q)rm -f xdp_kern.o xdp_user af_xdp_user *.o
+	$(Q)rm -f $(COMMON_DIR)/*.o
+	@echo "Clean complete"
 
-# 安装
-install: all
-	@echo "Installing XDP programs..."
-	cp $(TARGET) /usr/local/bin/
-	cp $(AF_XDP_TARGET) /usr/local/bin/
-	@echo "Installation complete"
-
-# 卸载
-uninstall:
-	rm -f /usr/local/bin/$(TARGET)
-	rm -f /usr/local/bin/$(AF_XDP_TARGET)
-	@echo "Uninstallation complete"
-
-# 重新编译
+# Force rebuild
 rebuild: clean all
 
-# 帮助
+# Install
+install: all
+	@echo "Installing XDP programs..."
+	install -m 0755 xdp_user /usr/local/bin/
+	install -m 0755 af_xdp_user /usr/local/bin/
+	install -m 0644 xdp_kern.o /usr/local/lib/bpf/ 2>/dev/null || true
+	@echo "Installation complete"
+
+# Help
 help:
-	@echo "XDP Cluster Forwarding Project (using xdp-tools)"
+	@echo "XDP Cluster Forwarding Project"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all         - Build all targets (default)"
-	@echo "  $(BPF_TARGET)   - Build BPF object"
-	@echo "  $(TARGET)      - Build XDP controller"
-	@echo "  $(AF_XDP_TARGET) - Build AF_XDP forwarder"
-	@echo "  clean       - Remove built files"
-	@echo "  install     - Install binaries"
-	@echo "  uninstall   - Uninstall binaries"
-	@echo "  rebuild     - Clean and rebuild"
+	@echo "  all          - Build all targets (default)"
+	@echo "  lib          - Build common library"
+	@echo "  xdp_kern.o   - Build BPF object"
+	@echo "  xdp_user     - Build XDP controller"
+	@echo "  af_xdp_user  - Build AF_XDP forwarder"
+	@echo "  clean        - Remove built files"
+	@echo "  rebuild      - Clean and rebuild"
+	@echo "  install      - Install binaries"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make                    # Build everything"
-	@echo "  make clean              # Clean build artifacts"
+	@echo "  make              # Build everything"
+	@echo "  make V=1          # Verbose build"
+	@echo "  make clean        # Clean build artifacts"
+	@echo "  make rebuild      # Clean and rebuild"
 
-.PHONY: all clean install uninstall rebuild help
+.PHONY: all lib clean rebuild install help
