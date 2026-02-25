@@ -3,6 +3,7 @@
 # 项目目录
 SCRIPT_DIR := $(shell pwd)
 LIBBPF_DIR := $(SCRIPT_DIR)/lib/libbpf
+LIBBPF_SRC := $(LIBBPF_DIR)/src
 
 # 编译器
 CC = clang
@@ -10,7 +11,7 @@ LD = ld
 
 # 编译选项 - 使用本地libbpf
 CFLAGS = -Wall -O2 -g -I$(LIBBPF_DIR)/src -I/usr/include
-LDFLAGS = -lelf -lpthread -lz $(LIBBPF_DIR)/src/libbpf.a
+LDFLAGS = -lelf -lpthread -lz $(LIBBPF_SRC)/libbpf.a
 
 # 目标文件
 TARGET = xdp_controller
@@ -36,16 +37,21 @@ $(BPF_TARGET): xdp_kern.c $(HEADERS)
 	@echo "BPF object built: $@"
 
 # 编译用户态控制器
-$(TARGET): xdp_user.c $(HEADERS)
+$(TARGET): xdp_user.c $(HEADERS) $(LIBBPF_SRC)/libbpf.a
 	@echo "Building XDP controller..."
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 	@echo "XDP controller built: $@"
 
 # 编译AF_XDP程序
-$(AF_XDP_TARGET): af_xdp_user.c $(HEADERS)
+$(AF_XDP_TARGET): af_xdp_user.c $(HEADERS) $(LIBBPF_SRC)/libbpf.a
 	@echo "Building AF_XDP forwarder..."
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 	@echo "AF_XDP forwarder built: $@"
+
+# 构建 libbpf（如果不存在）
+$(LIBBPF_SRC)/libbpf.a:
+	@echo "Building libbpf..."
+	cd $(LIBBPF_SRC) && make
 
 # 清理
 clean:
@@ -68,11 +74,6 @@ uninstall:
 # 重新编译
 rebuild: clean all
 
-# 下载并编译依赖
-deps:
-	@echo "下载 libbpf..."
-	./脚本.sh
-
 # 帮助
 help:
 	@echo "XDP Cluster Forwarding Project"
@@ -86,11 +87,9 @@ help:
 	@echo "  install     - Install binaries"
 	@echo "  uninstall   - Uninstall binaries"
 	@echo "  rebuild     - Clean and rebuild"
-	@echo "  deps        - Download and build libbpf"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make deps               # Download libbpf"
 	@echo "  make                    # Build everything"
 	@echo "  make clean              # Clean build artifacts"
 
-.PHONY: all clean install uninstall rebuild help deps
+.PHONY: all clean install uninstall rebuild help
