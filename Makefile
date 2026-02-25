@@ -1,17 +1,26 @@
 # Makefile for XDP Cluster Forwarding Project
+# 使用 xdp-tools
 
 # 项目目录
 SCRIPT_DIR := $(shell pwd)
 LIBBPF_DIR := $(SCRIPT_DIR)/lib/libbpf
-LIBBPF_SRC := $(LIBBPF_DIR)/src
+XDP_TOOLS_DIR := $(SCRIPT_DIR)/lib/xdp-tools
+LIBXDP_DIR := $(XDP_TOOLS_DIR)/lib/libxdp
 
 # 编译器
 CC = clang
 LD = ld
 
-# 编译选项 - 使用本地libbpf
-CFLAGS = -Wall -O2 -g -I$(LIBBPF_DIR)/src -I/usr/include
-LDFLAGS = -lelf -lpthread -lz $(LIBBPF_SRC)/libbpf.a
+# 编译选项 - 使用 xdp-tools 和 libbpf
+CFLAGS = -Wall -O2 -g \
+         -I$(LIBBPF_DIR)/src \
+         -I$(XDP_TOOLS_DIR)/headers \
+         -I/usr/include
+
+# 链接选项
+LDFLAGS = -lelf -lpthread -lz \
+          $(LIBBPF_DIR)/src/libbpf.a \
+          $(LIBXDP_DIR)/libxdp.a
 
 # 目标文件
 TARGET = xdp_controller
@@ -22,7 +31,9 @@ BPF_TARGET = xdp_kern.o
 BPF_CFLAGS = -Wno-unused-value -Wno-pointer-sign \
              -Wno-compare-distinct-pointer-types \
              -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/') \
-             -I$(LIBBPF_DIR)/src -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
+             -I$(LIBBPF_DIR)/src \
+             -I$(XDP_TOOLS_DIR)/headers \
+             -I/usr/include/$(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/' | sed 's/aarch64/aarch64-linux-gnu/')
 
 # 头文件
 HEADERS = common.h
@@ -37,21 +48,26 @@ $(BPF_TARGET): xdp_kern.c $(HEADERS)
 	@echo "BPF object built: $@"
 
 # 编译用户态控制器
-$(TARGET): xdp_user.c $(HEADERS) $(LIBBPF_SRC)/libbpf.a
+$(TARGET): xdp_user.c $(HEADERS) $(LIBBPF_DIR)/src/libbpf.a $(LIBXDP_DIR)/libxdp.a
 	@echo "Building XDP controller..."
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 	@echo "XDP controller built: $@"
 
 # 编译AF_XDP程序
-$(AF_XDP_TARGET): af_xdp_user.c $(HEADERS) $(LIBBPF_SRC)/libbpf.a
+$(AF_XDP_TARGET): af_xdp_user.c $(HEADERS) $(LIBBPF_DIR)/src/libbpf.a
 	@echo "Building AF_XDP forwarder..."
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 	@echo "AF_XDP forwarder built: $@"
 
 # 构建 libbpf（如果不存在）
-$(LIBBPF_SRC)/libbpf.a:
+$(LIBBPF_DIR)/src/libbpf.a:
 	@echo "Building libbpf..."
-	cd $(LIBBPF_SRC) && make
+	cd $(LIBBPF_DIR)/src && make
+
+# 构建 libxdp（如果不存在）
+$(LIBXDP_DIR)/libxdp.a:
+	@echo "Building libxdp..."
+	cd $(LIBXDP_DIR) && make
 
 # 清理
 clean:
@@ -76,7 +92,7 @@ rebuild: clean all
 
 # 帮助
 help:
-	@echo "XDP Cluster Forwarding Project"
+	@echo "XDP Cluster Forwarding Project (using xdp-tools)"
 	@echo ""
 	@echo "Targets:"
 	@echo "  all         - Build all targets (default)"

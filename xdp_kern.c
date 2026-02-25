@@ -1,4 +1,5 @@
 /* xdp_kern.c - XDP eBPF 内核程序
+ * 使用 xdp-tools/libxdp 规范
  * 实现五元组提取、O(1)查表和XDP_TX转发
  */
 
@@ -6,9 +7,10 @@
 #include <linux/in.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include <xdp/xdp_helpers.h>
 #include "common.h"
 
-/* 协议定义 - 直接使用数值避免头文件问题 */
+/* 协议定义 */
 #ifndef IPPROTO_TCP
 #define IPPROTO_TCP 6
 #endif
@@ -16,30 +18,20 @@
 #define IPPROTO_UDP 17
 #endif
 
-/* bpf_map_def 定义 - 兼容旧版 libbpf */
-#ifndef bpf_map_def
-struct bpf_map_def {
-    unsigned int type;
-    unsigned int key_size;
-    unsigned int value_size;
-    unsigned int max_entries;
-};
-#endif
+/* 使用 xdp-tools 的 SEC 宏定义 MAP */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(struct flow_key));
+    __uint(value_size, sizeof(struct forward_entry));
+    __uint(max_entries, MAP_SIZE);
+} flow_table SEC(".maps");
 
-/* 声明 eBPF Maps */
-struct bpf_map_def SEC("maps") flow_table = {
-    .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(struct flow_key),
-    .value_size = sizeof(struct forward_entry),
-    .max_entries = MAP_SIZE,
-};
-
-struct bpf_map_def SEC("maps") stats_map = {
-    .type = BPF_MAP_TYPE_ARRAY,
-    .key_size = sizeof(__u32),
-    .value_size = sizeof(struct stats),
-    .max_entries = 1,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(struct stats));
+    __uint(max_entries, 1);
+} stats_map SEC(".maps");
 
 /* 提取五元组并查表 */
 static __always_inline struct forward_entry* flow_lookup(struct xdp_md *ctx,

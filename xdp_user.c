@@ -1,4 +1,5 @@
 /* xdp_user.c - XDP 用户态控制面程序
+ * 使用 libxdp API
  * 实现eBPF Map管理、AF_XDP通信和统计查询
  */
 
@@ -12,7 +13,7 @@
 #include <linux/if_link.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-#include <bpf/libbpf.h>
+#include <xdp/libxdp.h>
 #include <bpf/bpf.h>
 #include "common.h"
 
@@ -21,11 +22,10 @@
 
 /* 全局变量 */
 static int ifindex = -1;
-static __u32 xdp_flags = 0;
 static int prog_fd = -1;
 static int map_fd = -1;
 static int stats_fd = -1;
-static struct bpf_object *bpf_obj = NULL;
+static struct xdp_program *xdp_prog = NULL;
 static volatile int running = 1;
 
 /* 信号处理 */
@@ -35,37 +35,43 @@ static void signal_handler(int sig)
     running = 0;
 }
 
-/* 加载BPF对象 */
-static int load_bpf_object(const char *filename)
+/* 加载 XDP 程序 - 使用 libxdp API */
+static int load_xdp_program(const char *filename)
 {
-    struct bpf_program *prog;
     int err;
 
-    /* 打开并加载BPF对象 */
-    bpf_obj = bpf_object__open_file(filename, NULL);
-    if (!bpf_obj) {
-        fprintf(stderr, "Error: Failed to open BPF object: %s\n", strerror(errno));
+    /* 使用 libxdp 打开并加载 XDP 程序 */
+    xdp_prog = xdp_program__open_file(filename, "xdp", NULL);
+    if (!xdp_prog) {
+        fprintf(stderr, "Error: Failed to open XDP program: %s\n", strerror(errno));
         return -1;
     }
 
-    /* 加载到内核 */
-    err = bpf_object__load(bpf_obj);
+    /* 加载程序到内核 */
+    err = xdp_program__load(xdp_prog);
     if (err) {
-        fprintf(stderr, "Error: Failed to load BPF object: %s\n", strerror(errno));
+        fprintf(stderr, "Error: Failed to load XDP program: %s\n", strerror(errno));
+        xdp_program__close(xdp_prog);
+        xdp_prog = NULL;
         return -1;
     }
 
-    /* 获取程序fd */
-    prog = bpf_object__find_program_by_name(bpf_obj, "xdp_forward");
-    if (!prog) {
-        fprintf(stderr, "Error: Failed to find xdp_forward program\n");
+    /* 获取程序 fd */
+    prog_fd = xdp_program__fd(xdp_prog);
+    if (prog_fd < 0) {
+        fprintf(stderr, "Error: Failed to get program fd\n");
         return -1;
     }
-    prog_fd = bpf_program__fd(prog);
 
-    /* 获取Map fd */
-    struct bpf_map *map;
-    map = NULL;
+    /* 获取 bpf_object 以访问 maps */
+    struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
+    if (!bpf_obj) {
+        fprintf(stderr, "Error: Failed to get bpf_object\n");
+        return -1;
+    }
+
+    /* 查找 flow_table map */
+    struct bpf_map *map = NULL;
     while ((map = bpf_map__next(map, bpf_obj))) {
         if (strcmp(bpf_map__name(map), "flow_table") == 0) {
             map_fd = bpf_map__fd(map);
@@ -77,6 +83,7 @@ static int load_bpf_object(const char *filename)
         return -1;
     }
 
+    /* 查找 stats_map */
     map = NULL;
     while ((map = bpf_map__next(map, bpf_obj))) {
         if (strcmp(bpf_map__name(map), "stats_map") == 0) {
@@ -89,12 +96,12 @@ static int load_bpf_object(const char *filename)
         return -1;
     }
 
-    printf("[+] BPF object loaded successfully\n");
+    printf("[+] XDP program loaded successfully\n");
     return 0;
 }
 
-/* 附加XDP到网卡 */
-static int attach_xdp(const char *ifname, int prog_fd)
+/* 附加 XDP 到网卡 - 使用 libxdp API */
+static int attach_xdp(const char *ifname)
 {
     int err;
 
@@ -104,22 +111,35 @@ static int attach_xdp(const char *ifname, int prog_fd)
         return -1;
     }
 
-    err = bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags);
-    if (err < 0) {
-        fprintf(stderr, "Error: Failed to attach XDP to %s: %s\n",
-                ifname, strerror(errno));
+    if (!xdp_prog) {
+        fprintf(stderr, "Error: XDP program not loaded\n");
         return -1;
     }
 
-    printf("[+] XDP attached to interface %s (ifindex=%d)\n", ifname, ifindex);
+    /* 使用 libxdp 附加程序 */
+    err = xdp_program__attach(xdp_prog, ifindex, XDP_MODE_NATIVE, 0);
+    if (err < 0) {
+        /* 尝试通用模式 */
+        err = xdp_program__attach(xdp_prog, ifindex, XDP_MODE_SKB, 0);
+        if (err < 0) {
+            fprintf(stderr, "Error: Failed to attach XDP to %s: %s\n",
+                    ifname, strerror(errno));
+            return -1;
+        }
+        printf("[+] XDP attached to %s (SKB mode)\n", ifname);
+    } else {
+        printf("[+] XDP attached to %s (Native mode)\n", ifname);
+    }
+
     return 0;
 }
 
-/* 分离XDP */
+/* 分离 XDP */
 static void detach_xdp(void)
 {
-    if (ifindex > 0) {
-        bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+    if (xdp_prog && ifindex > 0) {
+        /* libxdp 没有直接分离的函数，使用 bpf_set_link_xdp_fd */
+        bpf_set_link_xdp_fd(ifindex, -1, 0);
         printf("[*] XDP detached from interface\n");
     }
 }
@@ -266,7 +286,6 @@ int main(int argc, char **argv)
     int add_rule_flag = 0;
     int del_rule_flag = 0;
     char *ifname = IFACE_NAME;
-    int err;
 
     /* 解析命令行参数 */
     while ((opt = getopt(argc, argv, "i:rsfadh")) != -1) {
@@ -302,12 +321,12 @@ int main(int argc, char **argv)
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    /* 加载BPF对象 */
-    if (load_bpf_object(BPF_OBJ_FILE) < 0) {
+    /* 加载 XDP 程序 */
+    if (load_xdp_program(BPF_OBJ_FILE) < 0) {
         return 1;
     }
 
-    /* 如果只显示统计或流表，不需要附加XDP */
+    /* 如果只显示统计或流表，不需要附加 XDP */
     if (show_stats_flag) {
         show_stats();
         return 0;
@@ -318,8 +337,8 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    /* 附加XDP到网卡 */
-    if (attach_xdp(ifname, prog_fd) < 0) {
+    /* 附加 XDP 到网卡 */
+    if (attach_xdp(ifname) < 0) {
         return 1;
     }
 
@@ -355,6 +374,9 @@ int main(int argc, char **argv)
 
     /* 清理 */
     detach_xdp();
+    if (xdp_prog) {
+        xdp_program__close(xdp_prog);
+    }
     printf("[*] XDP controller stopped\n");
 
     return 0;
