@@ -2,7 +2,7 @@
 
 # 项目目录
 SCRIPT_DIR := $(shell pwd)
-LIBBPF_DIR := $(SCRIPT_DIR)/libbpf
+LIBBPF_DIR := $(SCRIPT_DIR)/lib/libbpf
 
 # 编译器
 CC = clang
