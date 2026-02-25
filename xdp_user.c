@@ -35,11 +35,9 @@ static void signal_handler(int sig)
     running = 0;
 }
 
-/* 加载 XDP 程序 - 使用 libxdp API */
+/* 加载 XDP 程序 - 使用新版 libxdp API */
 static int load_xdp_program(const char *filename)
 {
-    int err;
-
     /* 使用 libxdp 打开并加载 XDP 程序 */
     xdp_prog = xdp_program__open_file(filename, "xdp", NULL);
     if (!xdp_prog) {
@@ -47,16 +45,7 @@ static int load_xdp_program(const char *filename)
         return -1;
     }
 
-    /* 加载程序到内核 */
-    err = xdp_program__load(xdp_prog);
-    if (err) {
-        fprintf(stderr, "Error: Failed to load XDP program: %s\n", strerror(errno));
-        xdp_program__close(xdp_prog);
-        xdp_prog = NULL;
-        return -1;
-    }
-
-    /* 获取程序 fd */
+    /* 获取程序 fd - 新版直接可用，无需 xdp_program__load */
     prog_fd = xdp_program__fd(xdp_prog);
     if (prog_fd < 0) {
         fprintf(stderr, "Error: Failed to get program fd\n");
@@ -70,9 +59,9 @@ static int load_xdp_program(const char *filename)
         return -1;
     }
 
-    /* 查找 flow_table map */
+    /* 查找 flow_table map - 使用 bpf_map__for_each 宏 */
     struct bpf_map *map = NULL;
-    while ((map = bpf_map__next(map, bpf_obj))) {
+    bpf_map__for_each(map, bpf_obj) {
         if (strcmp(bpf_map__name(map), "flow_table") == 0) {
             map_fd = bpf_map__fd(map);
             break;
@@ -85,7 +74,7 @@ static int load_xdp_program(const char *filename)
 
     /* 查找 stats_map */
     map = NULL;
-    while ((map = bpf_map__next(map, bpf_obj))) {
+    bpf_map__for_each(map, bpf_obj) {
         if (strcmp(bpf_map__name(map), "stats_map") == 0) {
             stats_fd = bpf_map__fd(map);
             break;
@@ -138,8 +127,8 @@ static int attach_xdp(const char *ifname)
 static void detach_xdp(void)
 {
     if (xdp_prog && ifindex > 0) {
-        /* libxdp 没有直接分离的函数，使用 bpf_set_link_xdp_fd */
-        bpf_set_link_xdp_fd(ifindex, -1, 0);
+        /* 使用 libxdp 分离程序 */
+        xdp_program__detach(xdp_prog, ifindex, XDP_MODE_NATIVE, 0);
         printf("[*] XDP detached from interface\n");
     }
 }

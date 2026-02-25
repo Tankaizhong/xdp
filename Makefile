@@ -15,12 +15,15 @@ LD = ld
 CFLAGS = -Wall -O2 -g \
          -I$(LIBBPF_DIR)/src \
          -I$(XDP_TOOLS_DIR)/headers \
+         -I$(XDP_TOOLS_DIR)/headers/bpf \
+         -I$(XDP_TOOLS_DIR)/headers/linux \
+         -I$(XDP_TOOLS_DIR)/headers/xdp \
          -I/usr/include
 
-# 链接选项
+# 链接选项 - libxdp 依赖 libbpf，所以 libbpf 要放后面
 LDFLAGS = -lelf -lpthread -lz \
-          $(LIBBPF_DIR)/src/libbpf.a \
-          $(LIBXDP_DIR)/libxdp.a
+          $(LIBXDP_DIR)/libxdp.a \
+          $(LIBBPF_DIR)/src/libbpf.a
 
 # 目标文件
 TARGET = xdp_controller
