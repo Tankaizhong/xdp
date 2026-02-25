@@ -22,7 +22,7 @@ struct flow_key {
 };
 
 struct forward_entry {
-    __u32 dst_mac[2];  /* 目标MAC地址 */
+    __u8  dst_mac[ETH_ALEN];  /* 目标MAC地址 */
     __u32 dst_ip;      /* 目标IP地址 */
     __u8  action;      /* 转发动作 */
 };

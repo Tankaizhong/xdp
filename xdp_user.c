@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <linux/if_link.h>
 #include <net/if.h>
+#include <arpa/inet.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include "common.h"
@@ -138,7 +139,7 @@ static int add_flow_rule(__u32 src_ip, __u32 dst_ip,
     }
 
     printf("[+] Flow rule added: %pI4:%d -> %pI4:%d (proto=%d)\n",
-           &src_ip, bpf_ntohs(src_port), &dst_ip, bpf_ntohs(dst_port), proto);
+           &src_ip, ntohs(src_port), &dst_ip, ntohs(dst_port), proto);
     return 0;
 }
 
@@ -199,8 +200,8 @@ static void show_flow_table(void)
     while (bpf_map_get_next_key(map_fd, &prev, &key) == 0) {
         if (bpf_map_lookup_elem(map_fd, &key, &entry) == 0) {
             printf("[%d] %pI4:%d -> %pI4:%d (proto=%d) -> MAC:%pM, action=%d\n",
-                   ++count, &key.src_ip, bpf_ntohs(key.src_port),
-                   &key.dst_ip, bpf_ntohs(key.dst_port), key.proto,
+                   ++count, &key.src_ip, ntohs(key.src_port),
+                   &key.dst_ip, ntohs(key.dst_port), key.proto,
                    entry.dst_mac, entry.action);
         }
         prev = key;
@@ -221,8 +222,8 @@ static int init_default_rules(void)
     /* 10.0.0.1:8080 -> 10.0.0.2:80 (TCP) */
     __u32 src_ip = 0x0100000a;  /* 10.0.0.1 */
     __u32 dst_ip = 0x0200000a;  /* 10.0.0.2 */
-    __u16 src_port = bpf_htons(8080);
-    __u16 dst_port = bpf_htons(80);
+    __u16 src_port = htons(8080);
+    __u16 dst_port = htons(80);
 
     return add_flow_rule(src_ip, dst_ip, src_port, dst_port,
                          IPPROTO_TCP, mac, dst_ip, XDP_ACTION_TX);
@@ -317,8 +318,8 @@ int main(int argc, char **argv)
     if (del_rule_flag) {
         __u32 src_ip = 0x0100000a;
         __u32 dst_ip = 0x0200000a;
-        __u16 src_port = bpf_htons(8080);
-        __u16 dst_port = bpf_htons(80);
+        __u16 src_port = htons(8080);
+        __u16 dst_port = htons(80);
         del_flow_rule(src_ip, dst_ip, src_port, dst_port, IPPROTO_TCP);
     }
 
