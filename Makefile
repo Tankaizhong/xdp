@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for XDP Cluster Forwarding Project
+# Uses local libbpf and libxdp from xdp-tools submodule
 
 # Project directories
 LIB_DIR = ./lib
@@ -35,7 +36,7 @@ endif
 # Include config from xdp-tools
 include $(XDP_TOOLS_DIR)/config.mk
 
-# Extra includes
+# Extra includes - use local xdp-tools headers
 BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
 BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/headers
 BPF_CFLAGS += $(ARCH_INCLUDES)
@@ -44,16 +45,17 @@ CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
 CFLAGS += -I$(XDP_TOOLS_DIR)/headers
 CFLAGS += -I$(COMMON_DIR)
 
-# Link flags - use config.mk settings and add required libs
+# Link flags - use LOCAL libraries from xdp-tools (not system)
 LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libbpf/src
 LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libxdp
-# libxdp depends on libbpf, order matters for static linking
+
+# Static link with local libraries (order matters: libxdp depends on libbpf)
 LDLIBS += -l:libxdp.a -l:libbpf.a -lelf -lz -lpthread
 
 # Common objects
 COMMON_OBJS = $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_user_bpf_xdp.o
 
-# Library objects - libxdp depends on libbpf, so libbpf must come after libxdp
+# Library objects - use local libbpf and libxdp
 LIB_OBJS = $(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a \
 	   $(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a
 
@@ -77,6 +79,11 @@ $(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a:
 $(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a:
 	@echo "Building libxdp..."
 	$(MAKE) -C $(XDP_TOOLS_DIR)/lib/libxdp
+
+# Ensure xdp-tools is configured
+$(XDP_TOOLS_DIR)/config.mk:
+	@echo "Configuring xdp-tools..."
+	cd $(XDP_TOOLS_DIR) && ./configure
 
 # Build BPF object
 xdp_kern.o: xdp_kern.c $(LIB_OBJS) Makefile
@@ -126,5 +133,8 @@ help:
 	@echo "  make V=1          # Verbose build"
 	@echo "  make clean        # Clean build artifacts"
 	@echo "  make rebuild      # Clean and rebuild"
+	@echo ""
+	@echo "Note: This Makefile uses local libbpf and libxdp from"
+	@echo "      lib/xdp-tools submodule. No system dependencies required."
 
 .PHONY: all lib clean rebuild install help
