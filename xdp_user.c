@@ -33,6 +33,7 @@ static int map_fd = -1;
 static int stats_fd = -1;
 static struct xdp_program *xdp_prog = NULL;
 static struct bpf_object *bpf_obj = NULL;
+static int skb_mode = 0;
 static volatile int running = 1;
 
 /* 信号处理 */
@@ -157,7 +158,7 @@ static int attach_xdp(const char *ifname)
     usleep(100000);  // 100ms
 
     /* 使用 libxdp 附加程序 */
-    err = xdp_program__attach(xdp_prog, ifindex, XDP_MODE_NATIVE, 0);
+    err = xdp_program__attach(xdp_prog, ifindex, skb_mode ? XDP_MODE_SKB : XDP_MODE_NATIVE, 0);
     if (err < 0) {
         /* 尝试通用模式 */
         err = xdp_program__attach(xdp_prog, ifindex, XDP_MODE_SKB, 0);
@@ -290,6 +291,7 @@ static void show_help(const char *prog)
     printf("Usage: %s [OPTIONS]\n", prog);
     printf("Options:\n");
     printf("  -i <ifname>   Network interface to attach XDP (default: %s)\n", IFACE_NAME);
+    printf("  -S            Use SKB (generic) mode\n");
     printf("  -r            Run in daemon mode\n");
     printf("  -s            Show statistics\n");
     printf("  -f            Show flow table\n");
@@ -309,10 +311,13 @@ int main(int argc, char *argv[])
     int show_stats_flag = 0;
     int add_rule = 0;
 
-    while ((opt = getopt(argc, argv, "i:rsfadh")) != -1) {
+    while ((opt = getopt(argc, argv, "i:Srsfadh")) != -1) {
         switch (opt) {
             case 'i':
                 ifname = optarg;
+                break;
+            case 'S':
+                skb_mode = 1;
                 break;
             case 'r':
                 daemon_mode = 1;
