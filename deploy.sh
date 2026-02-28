@@ -82,7 +82,7 @@ build_programs() {
     if [[ ! -f "Makefile" ]]; then
         log_error "Makefile not found"
         exit 1
-    }
+    fi
 
     make clean
     make all
