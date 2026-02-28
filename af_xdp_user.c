@@ -37,7 +37,7 @@ static int create_xsk_socket(const char *ifname, int queue_id)
 {
     struct sockaddr_xdp sxdp = {0};
     struct xdp_mmap_offsets off;
-    int sock_fd, mmap_fd;
+    int sock_fd;
     int err;
     socklen_t optlen;
 
@@ -103,7 +103,7 @@ static int recv_packets(int sock_fd)
     }
 
     if (ret > 0) {
-        printf("[*] Received %d packets\n", ret / sizeof(struct xdp_desc));
+        printf("[*] Received %zu packets\n", (size_t)ret / sizeof(struct xdp_desc));
     }
 
     return ret;
@@ -123,7 +123,7 @@ static int send_packets(int sock_fd, struct xdp_desc *descs, int count)
     }
 
     if (ret > 0) {
-        printf("[*] Sent %d packets\n", ret / sizeof(struct xdp_desc));
+        printf("[*] Sent %zu packets\n", (size_t)ret / sizeof(struct xdp_desc));
     }
 
     return ret;
