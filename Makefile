@@ -4,13 +4,14 @@
 # Project directories
 LIB_DIR = ./lib
 COMMON_DIR = $(LIB_DIR)/common
-LIBBPF_DIR = $(LIB_DIR)/libbpf
-LIBXDP_DIR = $(LIB_DIR)/libxdp
 XDP_TOOLS_DIR = $(LIB_DIR)/xdp-tools
 
 # Toolchain
 CC ?= gcc
 CLANG ?= clang
+
+# Define targets
+USER_TARGETS = xdp_user af_xdp_user
 
 # Verbose control
 ifeq ("$(origin V)", "command line")
@@ -30,6 +31,9 @@ QUIET_CC =
 QUIET_CLANG =
 endif
 
+# Include config
+include $(XDP_TOOLS_DIR)/config.mk
+
 # BPF kernel object - use xdp-tools + libbpf headers
 BPF_CFLAGS = -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include -I$(XDP_TOOLS_DIR)/headers $(ARCH_INCLUDES)
 
@@ -37,14 +41,14 @@ BPF_CFLAGS = -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include -I$(XDP_TOOLS_DIR)/h
 CFLAGS = -I$(COMMON_DIR) -Wall
 
 # Link flags - use LOCAL static libraries
-LDFLAGS = -L$(LIBBPF_DIR)/src -L$(LIBXDP_DIR)
+LDFLAGS = -L$(LIB_DIR)/libbpf/src -L$(LIB_DIR)/libxdp
 LDLIBS = -l:libxdp.a -l:libbpf.a -lelf -lz -lpthread
 
 # Objects
 COMMON_OBJS = $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_user_bpf_xdp.o
-LIB_OBJS = $(LIBXDP_DIR)/libxdp.a $(LIBBPF_DIR)/src/libbpf.a
+LIB_OBJS = $(LIB_DIR)/libxdp/libxdp.a $(LIB_DIR)/libbpf/src/libbpf.a
 
-all: lib xdp_user af_xdp_user xdp_kern.o
+all: lib $(USER_TARGETS) xdp_kern.o
 
 lib:
 	$(MAKE) -C $(COMMON_DIR)
@@ -70,5 +74,6 @@ install: all
 
 help:
 	@echo "XDP Cluster Forwarding Project"
+	@echo "Targets: all, lib, clean, rebuild, install"
 
 .PHONY: all lib clean rebuild install help

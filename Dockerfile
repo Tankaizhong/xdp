@@ -16,10 +16,7 @@ RUN apt-get update && apt-get install -y \
     llvm \
     libelf-dev \
     iproute2 \
-    pkg-config \
     git \
-    m4 \
-    zlib1g-dev \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,31 +28,16 @@ COPY . .
 # Fix shell script line endings
 RUN find . -name "*.sh" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
 
-# Initialize git submodules (xdp-tools for headers)
+# Initialize git submodules
 RUN if [ -f .gitmodules ]; then \
         git submodule update --init --recursive; \
     fi
 
-# Configure xdp-tools if needed
-RUN if [ ! -f lib/xdp-tools/config.mk ]; then \
-        cd lib/xdp-tools && \
-        chmod +x configure && \
-        ./configure; \
-    fi
-
-# Build local libbpf and libxdp libraries
-RUN make -C lib/xdp-tools/lib/libbpf/src CFLAGS="-fPIC -O2"
-RUN make -C lib/xdp-tools/lib/libxdp
-
-# Copy built libs to local lib directory
-RUN cp lib/xdp-tools/lib/libxdp/libxdp.a lib/libxdp/ && \
-    cp lib/xdp-tools/lib/libbpf/src/libbpf.a lib/libbpf/src/
-
-# Build project with local libs
+# Build project
 RUN make clean || true
 RUN make
 
-# Install XDP programs
+# Install
 RUN make install
 
 # Default command
