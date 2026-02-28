@@ -20,10 +20,10 @@ BPF_DIR_MNT ?=/sys/fs/bpf
 BPF_OBJECT_DIR ?=$(LIBDIR)/bpf
 MAX_DISPATCHER_ACTIONS ?=10
 
-# Headers from xdp-tools
-HEADER_DIR = $(XDP_TOOLS_DIR)/headers
-LIBBPF_DIR := $(XDP_TOOLS_DIR)/lib/libbpf
-LIBXDP_DIR := $(XDP_TOOLS_DIR)/lib/libxdp
+# Use local headers instead of xdp-tools
+HEADER_DIR = $(LIB_DIR)/headers
+LIBBPF_DIR := $(LIB_DIR)/libbpf
+LIBXDP_DIR := $(LIB_DIR)/libxdp
 
 DEFINES := -DBPF_DIR_MNT=\"$(BPF_DIR_MNT)\" -DBPF_OBJECT_PATH=\"$(BPF_OBJECT_DIR)\"
 

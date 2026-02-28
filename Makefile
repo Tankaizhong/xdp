@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for XDP Cluster Forwarding Project
-# Uses local libbpf and libxdp from xdp-tools submodule
+# Uses local libbpf and libxdp from lib/ directory
 
 # Project directories
 LIB_DIR = ./lib
-XDP_TOOLS_DIR = $(LIB_DIR)/xdp-tools
 COMMON_DIR = $(LIB_DIR)/common
+LIBBPF_DIR = $(LIB_DIR)/libbpf
+LIBXDP_DIR = $(LIB_DIR)/libxdp
+XDP_TOOLS_DIR = $(LIB_DIR)/xdp-tools
 
 # Toolchain
 CC ?= gcc
@@ -33,21 +35,18 @@ QUIET_CC =
 QUIET_CLANG =
 endif
 
-# Include config from xdp-tools
-include $(XDP_TOOLS_DIR)/config.mk
-
-# Extra includes - use local xdp-tools headers
+# Include paths - use xdp-tools headers
 BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
 BPF_CFLAGS += -I$(XDP_TOOLS_DIR)/headers
 BPF_CFLAGS += $(ARCH_INCLUDES)
 
-CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
 CFLAGS += -I$(XDP_TOOLS_DIR)/headers
 CFLAGS += -I$(COMMON_DIR)
+CFLAGS += -Wall
 
-# Link flags - use LOCAL libraries from xdp-tools (not system)
-LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libbpf/src
-LDFLAGS += -L$(XDP_TOOLS_DIR)/lib/libxdp
+# Link flags - use LOCAL libraries from lib/
+LDFLAGS += -L$(LIBBPF_DIR)/src
+LDFLAGS += -L$(LIBXDP_DIR)
 
 # Static link with local libraries (order matters: libxdp depends on libbpf)
 LDLIBS += -l:libxdp.a -l:libbpf.a -lelf -lz -lpthread
@@ -56,8 +55,8 @@ LDLIBS += -l:libxdp.a -l:libbpf.a -lelf -lz -lpthread
 COMMON_OBJS = $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_user_bpf_xdp.o
 
 # Library objects - use local libbpf and libxdp
-LIB_OBJS = $(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a \
-	   $(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a
+LIB_OBJS = $(LIBXDP_DIR)/libxdp.a \
+	   $(LIBBPF_DIR)/src/libbpf.a
 
 # Create expansions
 XDP_OBJ = xdp_kern.o
@@ -70,32 +69,17 @@ lib:
 	@echo "Building common library..."
 	$(MAKE) -C $(COMMON_DIR)
 
-# Ensure libbpf is built
-$(XDP_TOOLS_DIR)/lib/libbpf/src/libbpf.a:
-	@echo "Building libbpf..."
-	$(MAKE) -C $(XDP_TOOLS_DIR)/lib/libbpf/src
-
-# Ensure libxdp is built
-$(XDP_TOOLS_DIR)/lib/libxdp/libxdp.a:
-	@echo "Building libxdp..."
-	$(MAKE) -C $(XDP_TOOLS_DIR)/lib/libxdp
-
-# Ensure xdp-tools is configured
-$(XDP_TOOLS_DIR)/config.mk:
-	@echo "Configuring xdp-tools..."
-	cd $(XDP_TOOLS_DIR) && ./configure
-
 # Build BPF object
 xdp_kern.o: xdp_kern.c $(LIB_OBJS) Makefile
 	$(QUIET_CLANG)$(CLANG) -target bpf $(BPF_CFLAGS) -O2 -c -g -o $@ $<
 
 # Build xdp_user
 xdp_user: xdp_user.c common.h $(COMMON_OBJS) $(LIB_OBJS) Makefile
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ xdp_user.c $(COMMON_OBJS) $(LDLIBS)
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ xdp_user.c $(COMMON_OBJS) $(LDLIBS)
 
 # Build af_xdp_user
 af_xdp_user: af_xdp_user.c common.h $(COMMON_OBJS) $(LIB_OBJS) Makefile
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ af_xdp_user.c $(COMMON_OBJS) $(LDLIBS)
+	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ af_xdp_user.c $(COMMON_OBJS) $(LDLIBS)
 
 # Clean
 clean:
@@ -133,8 +117,5 @@ help:
 	@echo "  make V=1          # Verbose build"
 	@echo "  make clean        # Clean build artifacts"
 	@echo "  make rebuild      # Clean and rebuild"
-	@echo ""
-	@echo "Note: This Makefile uses local libbpf and libxdp from"
-	@echo "      lib/xdp-tools submodule. No system dependencies required."
 
 .PHONY: all lib clean rebuild install help
