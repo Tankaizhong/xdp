@@ -1,0 +1,26 @@
+# Git
+.git
+.gitmodules
+
+# Build artifacts
+*.o
+xdp_user
+af_xdp_user
+xdp_kern.o
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test files
+test/
+*.test
