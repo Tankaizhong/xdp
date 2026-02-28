@@ -3,14 +3,14 @@
 
 LIB_DIR = ..
 XDP_TOOLS_DIR = $(LIB_DIR)/xdp-tools
+LIBBPF_DIR = $(LIB_DIR)/libbpf
 
-# Include config from xdp-tools
 include $(XDP_TOOLS_DIR)/config.mk
 
-CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
+CFLAGS += -I$(LIBBPF_DIR)/include
 CFLAGS += -I$(XDP_TOOLS_DIR)/headers
+CFLAGS += -I$(XDP_TOOLS_DIR)/lib/libbpf/src/root_include
 
-# Verbose control
 ifeq ($(VERBOSE),0)
 Q = @
 QUIET_CC = @echo '    CC       '$@;
@@ -27,7 +27,7 @@ common_params.o: common_params.c common_params.h
 common_user_bpf_xdp.o: common_user_bpf_xdp.c common_user_bpf_xdp.h
 	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
 
-.PHONY: clean
-
 clean:
 	$(Q)rm -f *.o
+
+.PHONY: clean
