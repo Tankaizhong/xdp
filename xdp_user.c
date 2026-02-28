@@ -158,16 +158,24 @@ static int attach_xdp(const char *ifname)
     usleep(100000);  // 100ms
 
     /* 使用 libxdp 附加程序 */
-    err = xdp_program__attach(xdp_prog, ifindex, skb_mode ? XDP_MODE_SKB : XDP_MODE_NATIVE, 0);
-    if (err < 0) {
-        /* 尝试通用模式 */
+    /* 默认尝试 Native 模式，不行则切换到 SKB 模式 */
+    int attach_mode = skb_mode ? XDP_MODE_SKB : XDP_MODE_NATIVE;
+    err = xdp_program__attach(xdp_prog, ifindex, attach_mode, 0);
+    if (err < 0 && !skb_mode) {
+        /* Native 失败，尝试 SKB 模式 */
+        fprintf(stderr, "libxdp: Error attaching XDP program in native mode: %s\n", strerror(-err));
+        fprintf(stderr, "libxdp: Trying SKB mode instead...\n");
         err = xdp_program__attach(xdp_prog, ifindex, XDP_MODE_SKB, 0);
         if (err < 0) {
             fprintf(stderr, "Error: Failed to attach XDP to %s: %s (err=%d)\n",
                     ifname, strerror(-err), err);
             return -1;
         }
-        printf("[+] XDP attached to %s (SKB mode)\n", ifname);
+        printf("[+] XDP attached to %s (SKB mode - fallback)\n", ifname);
+    } else if (err < 0) {
+        fprintf(stderr, "Error: Failed to attach XDP to %s: %s (err=%d)\n",
+                ifname, strerror(-err), err);
+        return -1;
     } else {
         printf("[+] XDP attached to %s (Native mode)\n", ifname);
     }
