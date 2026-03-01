@@ -49,15 +49,15 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # BPF kernel program
-# Use ARCH variable if set, otherwise detect from uname
-ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
+# Use libbpf headers for BPF compilation
+BPF_CFLAGS := -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
+	-I$(COMMON_DIR) \
+	-I$(LIB_DIR)/libbpf/src/root_include \
+	-I$(LIB_DIR)/install/include \
+	-O2 -g
+
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(CLANG) -target bpf -D__TARGET_ARCH_$(ARCH) \
-		-I$(COMMON_DIR) \
-		-I$(LIB_DIR)/install/include \
-		-I/usr/include \
-		-I/usr/include/$(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu") \
-		-O2 -c -g -o $@ $<
+	$(CLANG) -target bpf $(BPF_CFLAGS) -c -g -o $@ $<
 
 clean:
 	rm -f $(USER_TARGETS) xdp_kern.o
