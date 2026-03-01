@@ -50,10 +50,12 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 
 # BPF kernel program
 # Use libbpf headers for BPF compilation
-BPF_CFLAGS := -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
+ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
+BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I$(COMMON_DIR) \
 	-I$(LIB_DIR)/libbpf/src/root_include \
 	-I$(LIB_DIR)/install/include \
+	-I/usr/include/$(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu") \
 	-O2 -g
 
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
