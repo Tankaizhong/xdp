@@ -29,7 +29,6 @@ jobs:
             libpcap-dev \
             libelf-dev \
             libbpf-dev \
-            libxdp-dev \
             linux-tools-common \
             gcc-multilib \
             pkg-config \

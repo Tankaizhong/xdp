@@ -58,6 +58,7 @@ BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I./include/linux \
 	-I$(COMMON_DIR) \
 	-I$(LIB_DIR)/libbpf/src/root_include \
+	-I/usr/include \
 	-I/usr/include/$(MULTIARCH) \
 	-O2 -g
 
