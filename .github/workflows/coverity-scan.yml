@@ -31,6 +31,7 @@ jobs:
             elfutils \
             libpcap-dev \
             libelf-dev \
+            libbpf-dev \
             gcc-multilib \
             pkg-config \
             wireshark \
