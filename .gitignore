@@ -1,9 +1,39 @@
-.claude/
-.vscode/
+# Binaries
 *.o
 *.so
+*.a
+*.out
 xdp_user
 af_xdp_user
-xdp_controller
-af_xdp_forwarder
-xdp_kern.o
+
+# Build artifacts
+*.d
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
+
+# Backup files
+*~
+*.bak
+
+# Git
+.gitmodules
+
+# Lib (submodules)
+lib/libbpf/
+lib/xdp-tools/

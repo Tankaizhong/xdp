@@ -129,29 +129,50 @@ XDP（Express Data Path）是 Linux 内核的一项特性，允许在网络栈�
 
 ```
 xdp/
-├── lib/
-│   ├── common/       # 公共库
-│   ├── libbpf/       # libbpf 静态库
-│   ├── libxdp/       # libxdp 静态库
-│   └── xdp-tools/    # xdp-tools（子模块）
-├── xdp_kern.c        # XDP 内核程序（在内核中运行）
-├── xdp_user.c        # XDP 控制器（用户空间）
-├── af_xdp_user.c     # AF_XDP 转发器（零拷贝模式）
-├── common.h          # 公共定义头文件
-├── deploy.sh         # 部署脚本
-├── test.sh           # 测试脚本
-└── Makefile          # 构建文件
+├── src/                    # 用户态源代码
+│   ├── main/              # 主程序
+│   │   ├── xdp_user.c    # XDP 控制器
+│   │   └── af_xdp_user.c # AF_XDP 转发器
+│   └── lib/              # 公共库
+│       ├── common_libbpf.c
+│       └── common_params.c
+├── bpf/                   # eBPF 内核程序
+│   └── xdp_kern.c        # XDP 内核程序
+├── include/               # 头文件
+│   ├── user/             # 用户态头文件
+│   └── bpf/             # BPF 头文件
+├── lib/                   # 第三方库（子模块）
+│   ├── libbpf/          # libbpf
+│   └── xdp-tools/       # xdp-tools
+├── scripts/              # 脚本
+│   ├── deploy.sh         # 部署脚本
+│   ├── test.sh           # 测试脚本
+│   └── install.sh        # 安装脚本
+├── configs/              # 配置文件
+│   └── common.mk         # 构建配置
+├── deployment/           # 部署配置
+│   ├── docker/          # Docker 配置
+│   ├── kubernetes/      # K8s 配置
+│   └── systemd/         # systemd 服务
+├── test/                 # 测试代码
+│   ├── unit/           # 单元测试
+│   └── integration/    # 集成测试
+├── docs/                 # 文档
+├── Makefile             # 构建文件
+└── README.md            # 项目说明
 ```
 
 ### 关键文件
 
 | 文件 | 说明 |
 |------|------|
-| `xdp_kern.c` | 在内核中运行的 eBPF 程序 - 处理数据包 |
-| `xdp_user.c` | 用户空间控制器 - 管理 XDP 程序和流表 |
-| `af_xdp_user.c` | AF_XDP 实现 - 零拷贝转发到用户空间 |
-| `common.h` | 内核和用户空间共享的头文件 |
-| `deploy.sh` | 一键部署脚本 |
+| `bpf/xdp_kern.c` | 在内核中运行的 eBPF 程序 - 处理数据包 |
+| `src/main/xdp_user.c` | 用户空间控制器 - 管理 XDP 程序和流表 |
+| `src/main/af_xdp_user.c` | AF_XDP 实现 - 零拷贝转发到用户空间 |
+| `include/user/common.h` | 用户空间公共头文件 |
+| `scripts/deploy.sh` | 一键部署脚本 |
+| `deployment/systemd/xdp-lb.service` | systemd 服务配置 |
+| `deployment/kubernetes/manifests.yaml` | Kubernetes 部署配置 |
 
 ## 环境要求
 

@@ -1,0 +1,25 @@
+[Unit]
+Description=XDP Load Balancer
+Documentation=https://github.com/Tankaizhong/xdp
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/xdp
+ExecStart=/opt/xdp/xdp_user -i eth0 -r
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+LimitCORE=infinity
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/xdp,/run
+
+[Install]
+WantedBy=multi-user.target
