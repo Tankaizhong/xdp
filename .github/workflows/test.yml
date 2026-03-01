@@ -34,7 +34,8 @@ jobs:
             gcc-multilib \
             pkg-config \
             iproute2 \
-            git
+            git \
+            linux-libc-dev
 
       - name: Build
         run: make
