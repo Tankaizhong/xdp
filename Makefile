@@ -51,12 +51,13 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 # BPF kernel program
 # Use xdp-tools and libbpf headers, add arch include
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
+MULTIARCH := $(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
 BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I$(COMMON_DIR) \
 	-I$(LIB_DIR)/libbpf/src/root_include \
 	-I$(LIB_DIR)/xdp-tools/headers \
 	-I/usr/include \
-	-I/usr/include/$(ARCH)-linux-gnu \
+	-I/usr/include/$(MULTIARCH) \
 	-O2 -g
 
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
