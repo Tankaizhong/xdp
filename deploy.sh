@@ -12,9 +12,42 @@ NC='\033[0m' # No Color
 
 # 配置变量
 IFACE="${IFACE:-eth0}"
+BACKEND_IFACE="${BACKEND_IFACE:-eth1}"
 XDP_CONTROLLER="./xdp_user"
 AF_XDP_FORWARDER="./af_xdp_user"
 BPF_OBJ="./xdp_kern.o"
+
+# 自动获取本机IP
+get_ip() {
+    local iface=$1
+    ip -4 addr show "$iface" 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1
+}
+
+# 自动检测网络配置
+detect_network_config() {
+    log_info "Detecting network configuration..."
+
+    # 获取前端接口IP (VIP)
+    FRONTEND_IP=$(get_ip "$IFACE")
+    if [[ -z "$FRONTEND_IP" ]]; then
+        log_warn "No IP found on $IFACE, using default 192.168.88.10"
+        FRONTEND_IP="192.168.88.10"
+    else
+        log_info "Frontend IP detected: $FRONTEND_IP"
+    fi
+
+    # 获取后端接口IP
+    BACKEND_IP=$(get_ip "$BACKEND_IFACE")
+    if [[ -z "$BACKEND_IP" ]]; then
+        log_warn "No IP found on $BACKEND_IFACE, using default 192.168.89.10"
+        BACKEND_IP="192.168.89.10"
+    else
+        log_info "Backend IP detected: $BACKEND_IP"
+    fi
+
+    # 从后端IP推导后端网段
+    BACKEND_NETWORK=$(echo "$BACKEND_IP" | sed 's/\.[0-9]*$/.*/')
+}
 
 # 日志函数
 log_info() {
@@ -145,6 +178,21 @@ configure_network() {
     # 设置MTU（推荐使用较大MTU以减少开销）
     ip link set "$IFACE" mtu 9000
 
+    # 如果没有IP，则自动配置
+    if [[ -z "$(get_ip "$IFACE")" ]]; then
+        log_info "No IP on $IFACE, auto-configuring..."
+        ip addr add "$FRONTEND_IP/24" dev "$IFACE" 2>/dev/null || true
+    fi
+
+    # 配置后端网卡
+    if [[ -n "$BACKEND_IFACE" ]]; then
+        ip link set "$BACKEND_IFACE" up 2>/dev/null || true
+        if [[ -z "$(get_ip "$BACKEND_IFACE")" ]]; then
+            log_info "No IP on $BACKEND_IFACE, auto-configuring..."
+            ip addr add "$BACKEND_IP/24" dev "$BACKEND_IFACE" 2>/dev/null || true
+        fi
+    fi
+
     log_info "Network interface configured"
 }
 
@@ -265,7 +313,13 @@ usage() {
     echo "  help       - Show this help"
     echo ""
     echo "Environment Variables:"
-    echo "  IFACE      - Network interface (default: eth0)"
+    echo "  IFACE          - Frontend network interface (default: eth0)"
+    echo "  BACKEND_IFACE  - Backend network interface (default: eth1)"
+    echo ""
+    echo "Note: IP addresses are automatically detected from interfaces."
+    echo "      If not found, default IPs will be used:"
+    echo "      - Frontend: 192.168.88.10/24"
+    echo "      - Backend:  192.168.89.10/24"
 }
 
 # 主函数
@@ -277,6 +331,7 @@ main() {
             check_root
             check_dependencies
             check_kernel_support
+            detect_network_config
             build_programs
             configure_system
             configure_network
