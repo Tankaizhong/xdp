@@ -51,7 +51,9 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 # BPF kernel program
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
 	$(CLANG) -target bpf -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
-		-I$(COMMON_DIR) -I$(LIB_DIR)/install/include \
+		-I$(COMMON_DIR) \
+		-I$(LIB_DIR)/install/include \
+		-I/usr/include/$(shell gcc -print-multiarch) \
 		-O2 -c -g -o $@ $<
 
 clean:
