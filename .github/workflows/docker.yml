@@ -2,7 +2,7 @@ name: Docker Build
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, dev]
     tags: ['v*']
   pull_request:
     branches: [master, main]
@@ -10,18 +10,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata
-        id: meta
+ Extract metadata
+             - name: id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
