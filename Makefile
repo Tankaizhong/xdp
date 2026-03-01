@@ -12,7 +12,7 @@ LIB_DIR := ./lib
 CC ?= gcc
 CLANG ?= clang
 
-CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(LIB_DIR)/install/include
+CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(LIB_DIR)/install/include -I$(LIB_DIR)/xdp-tools/headers
 LDFLAGS := -lxdp -lbpf -lelf -lz
 
 # Targets
