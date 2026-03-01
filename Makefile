@@ -1,44 +1,56 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for XDP Cluster Forwarding Project
-#
-# This Makefile maintains backward compatibility with the original build system
-# while supporting the new directory structure via symlinks
 
-# Project directories (new structure)
+# Project directories
 SRC_DIR := ./src
 BPF_DIR := ./bpf
 INCLUDE_DIR := ./include
 LIB_DIR := ./lib
-
-# Legacy directories (for backward compatibility via symlinks)
 COMMON_DIR := ./common
 
+# Compiler settings
+CC ?= gcc
+CLANG ?= clang
+LLC ?= llc
+
+CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(INCLUDE_DIR)/user
+LDFLAGS := -lxdp -lbpf -lelf -lz
+
 # Targets
-XDP_TARGETS := xdp_kern
-USER_TARGETS := xdp_user af_xdp_user
+USER_BINARIES := xdp_user af_xdp_user
 
-include $(COMMON_DIR)/common.mk
+all: $(USER_BINARIES) xdp_kern.o
 
-# Add include path for backward compatibility
-CFLAGS += -I$(COMMON_DIR) -I$(INCLUDE_DIR)/user
+# User-space programs
+xdp_user: $(SRC_DIR)/main/xdp_user.c $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_libbpf.o $(COMMON_DIR)/common_user_bpf_xdp.o
+	$(CC) $(CFLAGS) -o $@ \
+		$(SRC_DIR)/main/xdp_user.c \
+		$(COMMON_DIR)/common_params.o \
+		$(COMMON_DIR)/common_libbpf.o \
+		$(COMMON_DIR)/common_user_bpf_xdp.o \
+		$(LDFLAGS)
 
-# Build lib first (creates install/ directory with headers)
-lib: $(OBJECT_LIBBPF) $(OBJECT_LIBXDP)
+af_xdp_user: $(SRC_DIR)/main/af_xdp_user.c $(COMMON_DIR)/common_params.o $(COMMON_DIR)/common_libbpf.o $(COMMON_DIR)/common_user_bpf_xdp.o
+	$(CC) $(CFLAGS) -o $@ \
+		$(SRC_DIR)/main/af_xdp_user.c \
+		$(COMMON_DIR)/common_params.o \
+		$(COMMON_DIR)/common_libbpf.o \
+		$(COMMON_DIR)/common_user_bpf_xdp.o \
+		$(LDFLAGS)
 
-all: lib $(USER_TARGETS) $(XDP_OBJ)
+# Common objects
+$(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
+	$(CC) $(CFLAGS) -I$(LIB_DIR)/install/include -c -o $@ $<
 
-xdp_user: $(SRC_DIR)/main/xdp_user.c $(COMMON_DIR)/common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
-
-af_xdp_user: $(SRC_DIR)/main/af_xdp_user.c $(COMMON_DIR)/common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
-
+# BPF kernel program
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(QUIET_CLANG)$(CLANG) -target $(BPF_TARGET) $(BPF_CFLAGS) -I$(INCLUDE_DIR)/bpf -I$(COMMON_DIR) -O2 -c -g -o $@ $<
+	$(CLANG) -target bpf -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
+		-I$(INCLUDE_DIR)/bpf -I$(COMMON_DIR) \
+		-O2 -c -g -o $@ $<
 
 clean:
-	$(Q)rm -f $(BPF_DIR)/xdp_kern.o $(SRC_DIR)/main/xdp_user $(SRC_DIR)/main/af_xdp_user
-	$(Q)rm -f xdp_kern.o xdp_user af_xdp_user *.o $(COMMON_DIR)/*.o
+	rm -f $(USER_BINARIES) xdp_kern.o
+	rm -f $(COMMON_DIR)/*.o
 
 rebuild: clean all
 
@@ -56,12 +68,11 @@ help:
 	@echo "XDP Cluster Forwarding Project"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all       - Build everything (default)"
-	@echo "  lib       - Build libbpf and libxdp"
+	@echo "  all       - Build everything"
 	@echo "  clean     - Clean build artifacts"
 	@echo "  rebuild   - Clean and rebuild"
 	@echo "  install   - Install binaries"
 	@echo "  uninstall - Remove installed binaries"
 	@echo "  help      - Show this help"
 
-.PHONY: all lib clean rebuild install uninstall help
+.PHONY: all clean rebuild install uninstall help
