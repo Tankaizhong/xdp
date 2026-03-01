@@ -53,7 +53,7 @@ xdp_kern.o: $(BPF_DIR)/xdp_kern.c
 	$(CLANG) -target bpf -D__TARGET_ARCH_$(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
 		-I$(COMMON_DIR) \
 		-I$(LIB_DIR)/install/include \
-		-I/usr/include/$(shell gcc -print-multiarch) \
+		-I/usr/include \
 		-O2 -c -g -o $@ $<
 
 clean:
