@@ -75,7 +75,7 @@ jobs:
           curl \
             --form project=xdp-project/xdp-tools \
             --form token=$TOKEN \
-            --form email=toke@redhat.com \
+            --form email=2534658839@qq.com \
             --form file=@xdp-tools.tgz \
             --form version=trunk \
             --form description="xdp-tools" \
