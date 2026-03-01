@@ -55,7 +55,7 @@ jobs:
 
       - name: Download Coverity Build Tool
         run: |
-          wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=xdp-project%2Fxdp-tools" -O cov-analysis-linux64.tar.gz
+          wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=Tankaizhong%2Fxdp" -O cov-analysis-linux64.tar.gz
           mkdir cov-analysis-linux64
           tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
         env:
@@ -73,12 +73,12 @@ jobs:
         run: |
           tar czvf xdp-tools.tgz cov-int
           curl \
-            --form project=xdp-project/xdp-tools \
+            --form project=Tankaizhong/xdp \
             --form token=$TOKEN \
             --form email=2534658839@qq.com \
             --form file=@xdp-tools.tgz \
             --form version=trunk \
-            --form description="xdp-tools" \
-            https://scan.coverity.com/builds?project=xdp-project%2Fxdp-tools
+            --form description="xdp" \
+            https://scan.coverity.com/builds?project=Tankaizhong%2Fxdp
         env:
           TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
