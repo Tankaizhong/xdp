@@ -39,6 +39,7 @@ jobs:
             libelf-dev \
             libpcap-dev \
             libbpf-dev \
+            libxdp-dev \
             pkg-config
 
       - name: Build
