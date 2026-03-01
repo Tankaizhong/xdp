@@ -9,7 +9,7 @@
 #include <linux/udp.h>
 #include <bpf/bpf_helpers.h>
 #include <xdp/parsing_helpers.h>
-#include "common.h"
+#include "../src/common/common.h"
 
 /* 使用 xdp-tools 的 SEC 宏定义 MAP */
 struct {
