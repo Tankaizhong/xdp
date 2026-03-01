@@ -3,6 +3,7 @@
 #ifndef __LINUX_ERR_H
 #define __LINUX_ERR_H
 
+#include <stdbool.h>
 #include <linux/types.h>
 #include <asm/errno.h>
 
@@ -28,11 +29,6 @@ static inline bool IS_ERR(const void *ptr)
 static inline bool IS_ERR_OR_NULL(const void *ptr)
 {
 	return (!ptr) || IS_ERR_VALUE((unsigned long)ptr);
-}
-
-static inline long PTR_ERR_OR_ZERO(const void *ptr)
-{
-	return IS_ERR(ptr) ? PTR_ERR(ptr) : 0;
 }
 
 #endif

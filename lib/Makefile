@@ -53,24 +53,26 @@ libbpf_clean:
 	@echo -n
 endif
 
-# Handle libbpf as git submodule
+# Handle libxdp from local sources (no xdp-tools dependency)
 ifeq ($(SYSTEM_LIBXDP),n)
 ifeq ($(VERBOSE),0)
 P:= >/dev/null
 endif
 
-# Detect submodule libbpf source file changes
-LIBXDP_SOURCES := $(wildcard xdp-tools/lib/libxdp/libxdp*.[ch]) xdp-tools/lib/libxdp/xsk.c
+# Detect local libxdp source file changes
+LIBXDP_SOURCES := $(wildcard libxdp/libxdp*.[ch]) libxdp/xsk.c
 
 
 $(LIB_INSTALL)/lib/libxdp.a: $(LIBXDP_SOURCES)
 	@echo ; echo "  libxdp"
-	$(QUIET_CC)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 libxdp  $P
-	$(QUIET_INSTALL)$(MAKE) -C xdp-tools DESTDIR=../../../$(LIB_INSTALL) PREFIX= BUILD_STATIC_ONLY=1 libxdp_install $P
+	$(QUIET_CC)$(MAKE) -C libxdp CFLAGS="$(LIBBPF_CFLAGS) -I../../include -I../../include/uapi" $P
+	$(QUIET_INSTALL)mkdir -p $(LIB_INSTALL)/include/xdp
+	$(QUIET_INSTALL)cp -f include/xdp/*.h $(LIB_INSTALL)/include/xdp/
+	$(Q)cp -fp libxdp/libxdp.a install/lib/
 
 .PHONY: libxdp_clean
 libxdp_clean:
-	$(Q)$(MAKE) -C xdp-tools clean $P
+	$(Q)$(MAKE) -C libxdp clean $P
 
 else
 

@@ -12,7 +12,7 @@ LIB_DIR := ./lib
 CC ?= gcc
 CLANG ?= clang
 
-CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(LIB_DIR)/install/include -I$(LIB_DIR)/xdp-tools/headers
+CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(LIB_DIR)/install/include
 LDFLAGS := -lxdp -lbpf -lelf -lz
 
 # Targets
@@ -53,11 +53,14 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 MULTIARCH := $(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
 BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
+	-I./include \
 	-I./include/xdp \
 	-I./include/bpf \
-	-I./include/linux \
+	-I./include/bpf/uapi \
+	-I./include/bpf/linux \
+	-I./include/bpf/asm \
 	-I./src/common \
-	-I./lib/xdp-tools/headers \
+	-I./lib/libbpf/include \
 	-I./lib/libbpf/src \
 	-I/usr/include/$(MULTIARCH) \
 	-O2 -g

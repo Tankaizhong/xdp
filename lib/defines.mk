@@ -17,7 +17,7 @@ BPF_OBJECT_DIR ?=$(LIBDIR)/bpf
 MAX_DISPATCHER_ACTIONS ?=10
 
 # headers/ dir contains include header files needed to compile BPF programs
-HEADER_DIR = $(LIB_DIR)/../headers
+HEADER_DIR = $(LIB_DIR)/../include
 # include/ dir contains the projects own include header files
 INCLUDE_DIR = $(LIB_DIR)/../include
 TEST_DIR = $(LIB_DIR)/testing
@@ -31,8 +31,8 @@ endif
 
 HAVE_FEATURES :=
 
-CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I/usr/include -I$(LIB_DIR)/xdp-tools/headers
-BPF_CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I$(LIB_DIR)/xdp-tools/headers -I$(LIB_DIR)/libbpf/src/root_include -I/usr/include
+CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I/usr/include -I$(LIB_DIR)/../include
+BPF_CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I$(LIB_DIR)/../include -I$(LIB_DIR)/libbpf/src/root_include -I/usr/include
 
 CONFIGMK := $(LIB_DIR)/../config.mk
 LIBMK := Makefile $(CONFIGMK) $(LIB_DIR)/defines.mk $(LIB_DIR)/common.mk $(LIB_DIR)/util/util.mk
