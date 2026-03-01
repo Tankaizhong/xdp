@@ -5,16 +5,16 @@ set -e
 
 echo "Running XDP project tests..."
 
-# Run the test script
+# Check if test.sh exists
 if [ -f "./test.sh" ]; then
     echo "Running ./test.sh..."
     sudo ./test.sh all || true
 else
-    echo "No test.sh found, running basic checks..."
+    echo "No test.sh found, running basic build verification..."
     
     # Basic build verification
     if [ -f "./xdp_user" ] && [ -f "./xdp_kern.o" ]; then
-        echo "Build artifacts found"
+        echo "SUCCESS: Build artifacts found"
     else
         echo "ERROR: Build artifacts missing"
         exit 1

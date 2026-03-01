@@ -38,6 +38,10 @@ jobs:
       - name: Build
         run: make
 
+      - name: Prepare test tools
+        run: |
+          ./.github/scripts/prepare_test_tools.sh || true
+
       - name: Run tests
         run: |
           ./.github/scripts/run-tests.sh
