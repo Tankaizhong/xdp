@@ -49,12 +49,13 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # BPF kernel program
-# Use libbpf headers for BPF compilation
+# Use libbpf headers for BPF compilation, avoid glibc headers
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I$(COMMON_DIR) \
 	-I$(LIB_DIR)/libbpf/src/root_include \
 	-I$(LIB_DIR)/install/include \
+	-isystem /usr/include \
 	-I/usr/include/$(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu") \
 	-O2 -g
 
