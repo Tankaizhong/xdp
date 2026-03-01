@@ -40,7 +40,8 @@ jobs:
             libxdp-dev \
             pkg-config \
             iproute2 \
-            git
+            git \
+            linux-libc-dev
 
       - name: Build
         run: make
