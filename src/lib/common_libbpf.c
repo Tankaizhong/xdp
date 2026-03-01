@@ -24,10 +24,6 @@ static inline bool IS_ERR_OR_NULL(const void *ptr)
 int bpf_prog_load_xattr_maps(const struct bpf_prog_load_attr_maps *attr,
 			     struct bpf_object **pobj, int *prog_fd)
 {
-	struct bpf_object_open_attr open_attr = {
-		.file		= attr->file,
-		.prog_type	= attr->prog_type,
-	};
 	struct bpf_program *prog, *first_prog = NULL;
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
@@ -41,8 +37,8 @@ int bpf_prog_load_xattr_maps(const struct bpf_prog_load_attr_maps *attr,
 	if (!attr->file)
 		return -EINVAL;
 
-
-	obj = bpf_object__open_xattr(&open_attr);
+	/* Use bpf_object__open instead of deprecated bpf_object__open_xattr */
+	obj = bpf_object__open(attr->file);
 	if (IS_ERR_OR_NULL(obj))
 		return -ENOENT;
 
@@ -82,8 +78,8 @@ int bpf_prog_load_xattr_maps(const struct bpf_prog_load_attr_maps *attr,
 	bpf_map__for_each(map, obj) {
 		const char* mapname = bpf_map__name(map);
 
-		if (!bpf_map__is_offload_neutral(map))
-			bpf_map__set_ifindex(map, attr->ifindex);
+		/* bpf_map__is_offload_neutral was removed in newer libbpf versions */
+		bpf_map__set_ifindex(map, attr->ifindex);
 			/* Was: map->map_ifindex = attr->ifindex; */
 
 		for (i = 0; i < attr->nr_pinned_maps; i++) {

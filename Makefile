@@ -1,57 +1,51 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for XDP Cluster Forwarding Project
+#
+# This Makefile maintains backward compatibility with the original build system
+# while supporting the new directory structure via symlinks
 
-# Project directories
+# Project directories (new structure)
 SRC_DIR := ./src
 BPF_DIR := ./bpf
 INCLUDE_DIR := ./include
 LIB_DIR := ./lib
-COMMON_DIR := ./src/lib
-CONFIGS_DIR := ./configs
+
+# Legacy directories (for backward compatibility via symlinks)
+COMMON_DIR := ./common
 
 # Targets
+XDP_TARGETS := xdp_kern
 USER_TARGETS := xdp_user af_xdp_user
 
-# Include common build config
-include $(CONFIGS_DIR)/common.mk
+include $(COMMON_DIR)/common.mk
 
-# Build lib first
+# Add include path for backward compatibility
+CFLAGS += -I$(COMMON_DIR) -I$(INCLUDE_DIR)/user
+
+# Build lib first (creates install/ directory with headers)
 lib: $(OBJECT_LIBBPF) $(OBJECT_LIBXDP)
 
 all: lib $(USER_TARGETS) $(XDP_OBJ)
 
-# User-space programs
-$(SRC_DIR)/main/xdp_user: $(SRC_DIR)/main/xdp_user.c $(INCLUDE_DIR)/user/common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -I$(INCLUDE_DIR)/user -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
+xdp_user: $(SRC_DIR)/main/xdp_user.c $(COMMON_DIR)/common.h
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
 
-$(SRC_DIR)/main/af_xdp_user: $(SRC_DIR)/main/af_xdp_user.c $(INCLUDE_DIR)/user/common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -I$(INCLUDE_DIR)/user -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
+af_xdp_user: $(SRC_DIR)/main/af_xdp_user.c $(COMMON_DIR)/common.h
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
 
-# Symlinks for backwards compatibility
-xdp_user: $(SRC_DIR)/main/xdp_user
-	@ln -sf $< $@
-
-af_xdp_user: $(SRC_DIR)/main/af_xdp_user
-	@ln -sf $< $@
-
-# BPF kernel program
-$(BPF_DIR)/xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(QUIET_CLANG)$(CLANG) -target $(BPF_TARGET) $(BPF_CFLAGS) -I$(INCLUDE_DIR)/bpf -O2 -c -g -o $@ $<
-
-xdp_kern.o: $(BPF_DIR)/xdp_kern.o
-	@ln -sf $< $@
+xdp_kern.o: $(BPF_DIR)/xdp_kern.c
+	$(QUIET_CLANG)$(CLANG) -target $(BPF_TARGET) $(BPF_CFLAGS) -I$(INCLUDE_DIR)/bpf -I$(COMMON_DIR) -O2 -c -g -o $@ $<
 
 clean:
-	$(Q)rm -f $(BPF_DIR)/*.o $(SRC_DIR)/main/xdp_user $(SRC_DIR)/main/af_xdp_user
-	$(Q)rm -f $(SRC_DIR)/lib/*.o
-	$(Q)rm -f xdp_user af_xdp_user xdp_kern.o *.o
+	$(Q)rm -f $(BPF_DIR)/xdp_kern.o $(SRC_DIR)/main/xdp_user $(SRC_DIR)/main/af_xdp_user
+	$(Q)rm -f xdp_kern.o xdp_user af_xdp_user *.o $(COMMON_DIR)/*.o
 
 rebuild: clean all
 
 install: all
-	install -m 0755 $(SRC_DIR)/main/xdp_user /usr/local/bin/
-	install -m 0755 $(SRC_DIR)/main/af_xdp_user /usr/local/bin/
-	install -m 0644 $(BPF_DIR)/xdp_kern.o /usr/local/lib/bpf/ 2>/dev/null || true
+	install -m 0755 xdp_user /usr/local/bin/
+	install -m 0755 af_xdp_user /usr/local/bin/
+	install -m 0644 xdp_kern.o /usr/local/lib/bpf/ 2>/dev/null || true
 
 uninstall:
 	rm -f /usr/local/bin/xdp_user
