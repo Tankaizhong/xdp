@@ -29,6 +29,14 @@ jobs:
           sudo make install
           sudo ldconfig
 
+      - name: Build xdp-tools
+        run: |
+          cd lib/xdp-tools
+          ./configure
+          make
+          sudo make install
+          sudo ldconfig
+
       - name: Build
         run: make V=1
 
