@@ -59,7 +59,6 @@ BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I./src/common \
 	-I./lib/xdp-tools/headers \
 	-I./lib/libbpf/src \
-	-I/usr/include \
 	-I/usr/include/$(MULTIARCH) \
 	-O2 -g
 
