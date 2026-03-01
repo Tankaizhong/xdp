@@ -21,19 +21,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config
-          # Fix libxdp symlink if needed
-          if [ -f /usr/lib/x86_64-linux-gnu/libxdp.so.1 ]; then
-            sudo ln -sf /usr/lib/x86_64-linux-gnu/libxdp.so.1 /usr/lib/x86_64-linux-gnu/libxdp.so || true
-            sudo ldconfig
-          fi
 
-      - name: Show versions
+      - name: Build libbpf
         run: |
-          clang --version
-          llvm-version
-          echo "=== Current directory ==="
-          pwd
-          ls -la
+          cd lib/libbpf/src
+          make
+          sudo make install
+          sudo ldconfig
 
       - name: Build
         run: make V=1
