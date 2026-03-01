@@ -35,4 +35,4 @@ jobs:
 
       - name: Run tests
         run: |
-          sudo ./test.sh all || true
+          ./.github/scripts/run-tests.sh
