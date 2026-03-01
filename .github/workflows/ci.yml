@@ -21,14 +21,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config
+          # Remove conflicting packages
+          sudo apt-get remove -y libxdp-dev || true
 
-      - name: Build libbpf
+      - name: Build and install libbpf
         run: |
           cd lib/libbpf/src
           make
           sudo make install_headers DESTDIR=/usr
 
-      - name: Build xdp-tools
+      - name: Build and install xdp-tools
         run: |
           cd lib/xdp-tools
           ./configure
@@ -37,7 +39,7 @@ jobs:
           sudo ldconfig
 
       - name: Build
-        run: make V=1
+        run: make
 
       - name: Run tests
         run: |
