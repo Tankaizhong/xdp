@@ -17,10 +17,10 @@ lib: $(OBJECT_LIBBPF) $(OBJECT_LIBXDP)
 all: lib $(USER_TARGETS) $(XDP_OBJ)
 
 xdp_user: xdp_user.c common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) $(LDLIBS)
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
 
 af_xdp_user: af_xdp_user.c common.h
-	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) $(LDLIBS)
+	$(QUIET_CC)$(CC) -Wall $(CFLAGS) $(LDFLAGS) -o $@ $< $(COMMON_OBJS) $(LIB_OBJS) -lxdp -lbpf
 
 xdp_kern.o: xdp_kern.c
 	$(QUIET_CLANG)$(CLANG) -target $(BPF_TARGET) $(BPF_CFLAGS) -O2 -c -g -o $@ $<
