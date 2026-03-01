@@ -32,7 +32,6 @@ jobs:
             libpcap-dev \
             libelf-dev \
             libbpf-dev \
-            libxdp-dev \
             gcc-multilib \
             pkg-config \
             wireshark \
