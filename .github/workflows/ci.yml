@@ -23,10 +23,14 @@ jobs:
             build-essential \
             clang \
             llvm \
-            libelf-dev \
+            zstd \
+            binutils-dev \
+            elfutils \
             libpcap-dev \
+            libelf-dev \
             libbpf-dev \
-            libxdp-dev \
+            linux-tools-common \
+            gcc-multilib \
             pkg-config \
             iproute2 \
             git
