@@ -27,12 +27,15 @@ XDP（Express Data Path）是 Linux 内核的一项特性，允许在网络栈�
 
 ### 组件说明
 
-| 组件 | 说明 |
-|------|------|
-| **eth0** | 接收外部流量的前端网络接口 |
-| **XDP 程序 (xdp_kern.o)** | 加载到内核的 eBPF 程序，在网卡层面处理数据包 |
-| **流表** | 存储活动连接和后端选择的 eBPF map |
-| **后端服务器** | 处理请求的真实后端服务 |
+| 组件 | IP 地址 | 说明 |
+|------|---------|------|
+| **客户端** | 任意 | 发送请求到 VIP |
+| **VIP (eth0)** | 192.168.88.10 | 虚拟 IP，接收外部流量 |
+| **XDP 程序** | - | 加载到内核的 eBPF 程序，在网卡层面处理数据包 |
+| **后端网卡 (eth1)** | 192.168.89.10 | 连接后端服务器的内网接口 |
+| **后端服务器 1** | 192.168.89.101:8080 | 真实后端服务 #1 |
+| **后端服务器 2** | 192.168.89.102:8080 | 真实后端服务 #2 |
+| **后端服务器 3** | 192.168.89.103:8080 | 真实后端服务 #3 |
 
 ## 工作原理
 
@@ -150,79 +153,100 @@ xdp/
 | `common.h` | 内核和用户空间共享的头文件 |
 | `deploy.sh` | 一键部署脚本 |
 
+## 环境要求
+
+- Linux 内核 5.4+ 并支持 XDP
+- clang 和 llvm
+- libelf-dev
+- iproute2
+
+### 检查 XDP 支持
+
+```bash
+# 检查内核是否支持 XDP
+ip link set eth0 xdp off
+```
+
+### 安装依赖
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install build-essential clang llvm libelf-dev iproute2 git pkg-config
+
+# RHEL/CentOS
+sudo yum install make gcc clang llvm libelf-devel iproute2 git pkg-config
+
+# Fedora
+sudo dnf install make gcc clang llvm libelf-devel iproute2 git pkg-config
+```
+
 ## 编译
 
 ```bash
-# 安装依赖
-sudo apt-get install build-essential clang llvm libelf-dev iproute2 git
-
-# 克隆并编译
+# 克隆项目
 git clone https://github.com/Tankaizhong/xdp.git
 cd xdp
+
+# 切换到 dev 分支
+git checkout dev
+
+# 初始化子模块
 git submodule update --init --recursive
+
+# 编译
 make
-```
-
-## 使用
-
-### 快速开始
-
-```bash
-# 部署 XDP 程序
-sudo ./deploy.sh deploy
-
-# 或者分步执行
-sudo ./deploy.sh build    # 编译程序
-sudo ./deploy.sh load     # 加载 XDP 到接口
-sudo ./deploy.sh start    # 启动控制器
-```
-
-### 手动控制
-
-```bash
-# 编译 XDP 程序
-make
-
-# 加载 XDP 到接口（将 eth0 替换为你的接口）
-sudo ip link set eth0 xdp obj xdp_kern.o sec xdp
-
-# 查看 XDP 状态
-ip link show eth0
-
-# 启动控制器（显示统计信息）
-sudo ./xdp_user -s
-
-# 启动控制器（显示流表）
-sudo ./xdp_user -f
-
-# 启动控制器（AF_XDP 模式）
-sudo ./af_xdp_user -s
-```
-
-### 测试
-
-```bash
-# 运行测试套件
-sudo ./test.sh all
-
-# 单独测试
-sudo ./test.sh loaded   # 检查 XDP 是否加载
-sudo ./test.sh stats    # 查看 XDP 统计
-sudo ./test.sh mode     # 检查 XDP 模式
-sudo ./test.sh latency  # 延迟测试
 ```
 
 ## 配置
 
-### 添加后端服务器
+### 自动检测（推荐）
 
-编辑 `xdp_user.c` 修改 `backends` 数组：
+部署脚本会自动检测网卡上的 IP 地址，无需手动配置：
+
+```bash
+# 自动检测并部署
+sudo ./deploy.sh deploy
+
+# 也可以指定接口
+IFACE=eth0 BACKEND_IFACE=eth1 sudo ./deploy.sh deploy
+```
+
+脚本会自动：
+1. 检测 `IFACE` 上的 IP 作为前端 IP
+2. 检测 `BACKEND_IFACE` 上的 IP 作为后端 IP
+3. 如果接口没有 IP，则使用默认网段配置
+
+### 手动配置
+
+如果需要手动配置网络接口：
+
+```bash
+# 配置前端网卡 (eth0) - 接收客户端流量
+sudo ip addr add 192.168.88.10/24 dev eth0
+sudo ip link set eth0 up
+
+# 配置后端网卡 (eth1) - 连接后端服务器
+sudo ip addr add 192.168.89.10/24 dev eth1
+sudo ip link set eth1 up
+```
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `IFACE` | eth0 | 前端网络接口 |
+| `BACKEND_IFACE` | eth1 | 后端网络接口 |
+
+### 后端服务器配置
+
+编辑 `xdp_user.c` 修改后端服务器地址：
 
 ```c
+// 在 xdp_user.c 中找到并修改
 static struct backend backends[] = {
-    { .ip = "192.168.1.10", .port = 8080 },
-    { .ip = "192.168.1.11", .port = 8080 },
-    { .ip = "192.168.1.12", .port = 8080 },
+    { .ip = "192.168.89.101", .port = 8080 },
+    { .ip = "192.168.89.102", .port = 8080 },
+    { .ip = "192.168.89.103", .port = 8080 },
 };
 ```
 
@@ -241,13 +265,102 @@ backend_id = src_hash % num_backends;
 backend_id = bpf_get_prandom_u32() % num_backends;
 ```
 
-## 监控
+## 使用
+
+### 快速开始
+
+```bash
+# 一键部署（需要 root 权限）
+sudo ./deploy.sh deploy
+
+# 或者分步执行
+sudo ./deploy.sh build    # 编译程序
+sudo ./deploy.sh load     # 加载 XDP 到接口
+sudo ./deploy.sh start    # 启动控制器
+```
+
+### 手动控制
+
+```bash
+# 1. 编译 XDP 程序
+make
+
+# 2. 配置网络接口（如尚未配置）
+sudo ip link set eth0 up
+sudo ip link set eth1 up
+
+# 3. 加载 XDP 到接口（将 eth0 替换为你的前端接口）
+sudo ip link set eth0 xdp obj xdp_kern.o sec xdp
+
+# 4. 查看 XDP 状态
+ip link show eth0
+
+# 5. 启动控制器（显示统计信息）
+sudo ./xdp_user -i eth0 -s
+
+# 6. 启动控制器（显示流表）
+sudo ./xdp_user -i eth0 -f
+
+# 7. 启动控制器（守护进程模式，后台运行）
+sudo ./xdp_user -i eth0 -r
+```
+
+### 控制器命令行选项
+
+| 选项 | 说明 |
+|------|------|
+| `-i <ifname>` | 指定网络接口（默认: eth0） |
+| `-S` | 使用 SKB（generic）模式 |
+| `-r` | 守护进程模式（后台运行） |
+| `-s` | 显示统计信息 |
+| `-f` | 显示流表 |
+| `-a` | 添加默认转发规则 |
+| `-d` | 删除默认转发规则 |
+| `-h` | 显示帮助 |
+
+### AF_XDP 模式（零拷贝）
+
+```bash
+# 编译 AF_XDP 程序
+make
+
+# 启动 AF_XDP 转发器
+sudo ./af_xdp_user -i eth0 -s
+```
+
+## 测试
+
+```bash
+# 运行完整测试套件
+sudo ./test.sh all
+
+# 单独测试
+sudo ./test.sh loaded   # 检查 XDP 是否加载
+sudo ./test.sh stats    # 查看 XDP 统计
+sudo ./test.sh mode     # 检查 XDP 模式
+sudo ./test.sh latency  # 延迟测试
+```
+
+### 验证部署
+
+```bash
+# 查看 XDP 状态
+ip link show eth0
+
+# 查看统计信息
+sudo ./xdp_user -i eth0 -s
+
+# 查看流表
+sudo ./xdp_user -i eth0 -f
+```
+
+## 监控与调试
 
 ### 查看统计信息
 
 ```bash
 # 使用 xdp_user
-sudo ./xdp_user -s
+sudo ./xdp_user -i eth0 -s
 
 # 使用 ip 命令
 ip -s link show eth0
@@ -257,7 +370,7 @@ ip -s link show eth0
 
 ```bash
 # 显示当前连接
-sudo ./xdp_user -f
+sudo ./xdp_user -i eth0 -f
 ```
 
 ### 调试 XDP
@@ -268,42 +381,83 @@ sudo cat /sys/kernel/debug/tracing/trace_pipe
 
 # 设置调试缓冲区
 sudo mount -t tracefs tracefs /sys/kernel/debug/tracing
-```
 
-## 环境要求
-
-- Linux 内核 5.4+ 并支持 XDP
-- clang 和 llvm
-- libelf-dev
-- iproute2
-
-### 检查 XDP 支持
-
-```bash
-# 检查内核是否支持 XDP
-ip link set eth0 xdp off
+# 查看详细的 XDP 跟踪信息
+sudo cat /sys/kernel/debug/tracing/trace | grep xdp
 ```
 
 ## 性能调优
 
-1. **大页内存**
-   ```bash
-   sudo sysctl -w vm.nr_hugepages=1024
-   ```
+### 1. 大页内存
 
-2. **锁定内存**
-   ```bash
-   sudo ulimit -l unlimited
-   ```
+```bash
+# 配置大页内存（用于 AF_XDP）
+sudo sysctl -w vm.nr_hugepages=1024
+```
 
-3. **CPU 亲和性**
-   ```bash
-   sudo taskset -c 0 ./xdp_user
-   ```
+### 2. 锁定内存
 
-## 许可证
+```bash
+# 允许锁定内存
+sudo ulimit -l unlimited
+```
 
-GPL-2.0
+### 3. CPU 亲和性
+
+```bash
+# 将 XDP 进程绑定到特定 CPU 核心
+sudo taskset -c 0 ./xdp_user -i eth0
+```
+
+### 4. 网卡配置
+
+```bash
+# 设置较大 MTU 以减少开销
+sudo ip link set eth0 mtu 9000
+
+# 禁用 rp_filter（对于转发场景）
+sudo sysctl -w net.ipv4.conf.all.rp_filter=0
+sudo sysctl -w net.ipv4.conf.default.rp_filter=0
+
+# 启用 IP 转发
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+## 停止服务
+
+```bash
+# 停止 XDP 服务
+sudo ./deploy.sh stop
+
+# 或者手动停止
+sudo ip link set eth0 xdp off
+sudo pkill -f xdp_user
+```
+
+## 常见问题
+
+### Q: XDP 加载失败
+
+A: 确保内核支持 XDP，并尝试使用 SKB 模式：
+```bash
+sudo ip link set eth0 xdp obj xdp_kern.o sec xdp mode generic
+```
+
+### Q: 无法连接后端
+
+A: 检查：
+1. 后端服务器是否运行
+2. 网络连通性（ping 192.168.89.101）
+3. 后端网卡 eth1 是否 up
+4. 防火墙是否阻止连接
+
+### Q: 性能不理想
+
+A: 尝试：
+1. 使用 Native 模式而非 SKB 模式
+2. 配置大页内存
+3. 锁定内存限制
+4. 调整 CPU 亲和性
 
 ## 参考资料
 
@@ -311,3 +465,7 @@ GPL-2.0
 - [libbpf GitHub](https://github.com/libbpf/libbpf)
 - [xdp-tools GitHub](https://github.com/xdp-project/xdp-tools)
 - [BPF Performance Tools](http://www.brendangregg.com/bpfperformance.html)
+
+## 许可证
+
+GPL-2.0
