@@ -26,6 +26,7 @@ jobs:
             libelf-dev \
             libpcap-dev \
             libbpf-dev \
+            libxdp-dev \
             pkg-config \
             iproute2 \
             git
