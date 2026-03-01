@@ -8,19 +8,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config libpcap-dev libbpf-dev
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            llvm \
+            libelf-dev \
+            libpcap-dev \
+            libbpf-dev \
+            pkg-config \
+            iproute2 \
+            git
 
       - name: Build
         run: make
