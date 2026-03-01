@@ -42,7 +42,9 @@ jobs:
             qemu-kvm \
             rpm2cpio \
             libdw-dev \
-            libdwarf-dev
+            libdwarf-dev \
+            llvm \
+            lld
 
       - name: Prepare Clang
         run: |
