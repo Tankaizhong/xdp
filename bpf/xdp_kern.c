@@ -11,7 +11,7 @@
 #include <xdp/parsing_helpers.h>
 #include "../src/common/common.h"
 
-/* 使用 xdp-tools 的 SEC 宏定义 MAP */
+/* 使用本地 SEC 宏定义 MAP */
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(key_size, sizeof(struct flow_key));

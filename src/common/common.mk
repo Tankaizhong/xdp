@@ -23,8 +23,8 @@ USER_OBJ := ${USER_C:.c=.o}
 COMMON_DIR ?= ../common
 LIB_DIR ?= ../lib
 
-COPY_LOADER ?=
-LOADER_DIR ?= $(LIB_DIR)/xdp-tools/xdp-loader
+# COPY_LOADER ?=
+# LOADER_DIR ?= $(LIB_DIR)/xdp-tools/xdp-loader
 STATS_DIR ?= $(COMMON_DIR)/../basic-solutions
 
 COMMON_OBJS += $(COMMON_DIR)/common_params.o
