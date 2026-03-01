@@ -12,8 +12,8 @@ NC='\033[0m' # No Color
 
 # 配置变量
 IFACE="${IFACE:-eth0}"
-XDP_CONTROLLER="./xdp_controller"
-AF_XDP_FORWARDER="./af_xdp_forwarder"
+XDP_CONTROLLER="./xdp_user"
+AF_XDP_FORWARDER="./af_xdp_user"
 BPF_OBJ="./xdp_kern.o"
 
 # 日志函数
@@ -41,7 +41,7 @@ check_root() {
 check_dependencies() {
     log_info "Checking dependencies..."
 
-    local deps=("clang" "llvm" "make" "gcc")
+    local deps=("clang" "make" "gcc")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
             log_error "Missing dependency: $dep"

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /* XDP Cluster Forwarding - 基于五元组的哈希查表转发 */
 
-#include <bpf/vmlinux.h>
 #include <linux/bpf.h>
+#include <linux/if_ether.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 #include <bpf/bpf_helpers.h>
 #include <xdp/parsing_helpers.h>
 #include "common.h"
@@ -52,13 +56,13 @@ static __always_inline struct forward_entry* flow_lookup(struct xdp_md *ctx,
 
 	/* 提取传输层端口 */
 	if (ip->protocol == IPPROTO_TCP) {
-		tcp = ip + 1;
+		tcp = (struct tcphdr *)(ip + 1);
 		if (tcp + 1 > data_end)
 			return NULL;
 		key->src_port = tcp->source;
 		key->dst_port = tcp->dest;
 	} else if (ip->protocol == IPPROTO_UDP) {
-		udp = ip + 1;
+		udp = (struct udphdr *)(ip + 1);
 		if (udp + 1 > data_end)
 			return NULL;
 		key->src_port = udp->source;
