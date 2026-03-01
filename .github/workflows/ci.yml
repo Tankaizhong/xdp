@@ -20,21 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config libpcap-dev
-
-      - name: Build and install libbpf
-        run: |
-          cd lib/libbpf/src
-          make
-          sudo make install_headers PREFIX=/usr
-
-      - name: Build and install xdp-tools
-        run: |
-          cd lib/xdp-tools
-          ./configure
-          make
-          sudo make install PREFIX=/usr
-          sudo ldconfig
+          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config libpcap-dev libbpf-dev
 
       - name: Build
         run: make
