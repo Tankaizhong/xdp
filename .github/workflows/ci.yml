@@ -26,14 +26,14 @@ jobs:
         run: |
           cd lib/libbpf/src
           make
-          sudo make install_headers DESTDIR=/usr
+          sudo make install_headers PREFIX=/usr
 
       - name: Build and install xdp-tools
         run: |
           cd lib/xdp-tools
           ./configure
           make
-          sudo make install
+          sudo make install PREFIX=/usr
           sudo ldconfig
 
       - name: Build
