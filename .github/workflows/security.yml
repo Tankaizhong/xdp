@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config libbpf-dev libxdp-dev
+          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config
 
       - name: Build
         run: make
