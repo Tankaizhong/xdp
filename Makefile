@@ -49,9 +49,8 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # BPF kernel program
-# Use local headers instead of xdp-tools
+# Use local headers only
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
-MULTIARCH := $(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
 BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I./include \
 	-I./include/xdp \
@@ -62,7 +61,6 @@ BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I./src/common \
 	-I./lib/libbpf/include \
 	-I./lib/libbpf/src \
-	-I/usr/include/$(MULTIARCH) \
 	-O2 -g
 
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
