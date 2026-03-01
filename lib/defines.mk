@@ -31,7 +31,7 @@ endif
 
 HAVE_FEATURES :=
 
-CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I$(LIB_DIR)/xdp-tools/headers
+CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I/usr/include -I$(LIB_DIR)/xdp-tools/headers
 BPF_CFLAGS += $(DEFINES) $(ARCH_INCLUDES) -I$(LIB_DIR)/xdp-tools/headers -I$(LIB_DIR)/libbpf/src/root_include
 
 CONFIGMK := $(LIB_DIR)/../config.mk
