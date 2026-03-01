@@ -37,6 +37,9 @@ jobs:
             git \
             linux-libc-dev
 
+      - name: Configure
+        run: ./configure
+
       - name: Build
         run: make
 
