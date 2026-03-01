@@ -8,37 +8,41 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang llvm libelf-dev iproute2 git pkg-config libpcap-dev
-
-      - name: Build and install libbpf
-        run: |
-          cd lib/libbpf/src
-          make
-          sudo make install_headers DESTDIR=/usr
-
-      - name: Build and install xdp-tools
-        run: |
-          cd lib/xdp-tools
-          ./configure
-          make
-          sudo make install
-          sudo ldconfig
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            llvm \
+            zstd \
+            binutils-dev \
+            elfutils \
+            libpcap-dev \
+            libelf-dev \
+            libbpf-dev \
+            libxdp-dev \
+            linux-tools-common \
+            gcc-multilib \
+            pkg-config \
+            iproute2 \
+            git
 
       - name: Build
         run: make
 
+      - name: Prepare test tools
+        run: |
+          ./.github/scripts/prepare_test_tools.sh || true
+
       - name: Run tests
         run: |
-          sudo ./test.sh all || true
+          ./.github/scripts/run-tests.sh

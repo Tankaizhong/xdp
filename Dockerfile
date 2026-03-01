@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y \
     clang \
     llvm \
     libelf-dev \
+    libpcap-dev \
+    libbpf-dev \
+    libxdp-dev \
+    pkg-config \
     iproute2 \
     git \
     sudo \
