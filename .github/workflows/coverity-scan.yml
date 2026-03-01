@@ -10,7 +10,7 @@ jobs:
   latest:
     permissions:
       contents: read
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     env:
       LLVM_VERSION: 19
@@ -50,7 +50,7 @@ jobs:
       - name: Prepare Clang
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-$LLVM_VERSION main" | sudo tee -a /etc/apt/sources.list
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-$LLVM_VERSION main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get -qq update
           sudo apt-get -qq -y install clang-$LLVM_VERSION lld-$LLVM_VERSION llvm-$LLVM_VERSION
 
