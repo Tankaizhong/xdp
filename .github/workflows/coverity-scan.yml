@@ -32,7 +32,6 @@ jobs:
             libpcap-dev \
             libelf-dev \
             libbpf-dev \
-            libxdp-dev \
             gcc-multilib \
             pkg-config \
             wireshark \
@@ -45,6 +44,14 @@ jobs:
             rpm2cpio \
             libdw-dev \
             libdwarf-dev
+
+      - name: Build and install libxdp
+        run: |
+          cd lib/xdp-tools
+          ./configure
+          make
+          sudo make install
+          sudo ldconfig
 
       - name: Prepare Clang
         run: |
