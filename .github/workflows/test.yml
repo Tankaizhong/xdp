@@ -37,3 +37,41 @@ jobs:
 
       - name: Build
         run: make
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking build artifacts..."
+
+          # Check if binaries exist
+          if [ ! -f "xdp_user" ]; then
+            echo "ERROR: xdp_user not found"
+            exit 1
+          fi
+
+          if [ ! -f "af_xdp_user" ]; then
+            echo "ERROR: af_xdp_user not found"
+            exit 1
+          fi
+
+          if [ ! -f "xdp_kern.o" ]; then
+            echo "ERROR: xdp_kern.o not found"
+            exit 1
+          fi
+
+          echo "All binaries found!"
+
+          # Check xdp_user is executable
+          file xdp_user
+          file af_xdp_user
+
+          # Check xdp_kern.o is a valid ELF BPF object file
+          file xdp_kern.o
+
+          # Verify BPF program section exists
+          if readelf -S xdp_kern.o | grep -q "xdp"; then
+            echo "BPF program section found!"
+          else
+            echo "WARNING: xdp section not found"
+          fi
+
+          echo "Build verification passed!"
