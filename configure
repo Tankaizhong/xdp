@@ -1,0 +1,59 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# configure - Check build dependencies
+
+ERRORS=0
+
+echo "Checking build dependencies..."
+
+# Check required commands
+check_command() {
+    if command -v "$1" >/dev/null 2>&1; then
+        echo "  [OK] $1"
+    else
+        echo "  [MISSING] $1"
+        ERRORS=$((ERRORS + 1))
+    fi
+}
+
+# Check required header files
+check_header() {
+    if [ -f "/usr/include/$1" ] || [ -d "/usr/include/$1" ]; then
+        echo "  [OK] $1"
+    else
+        echo "  [MISSING] $1"
+        ERRORS=$((ERRORS + 1))
+    fi
+}
+
+echo ""
+echo "Required commands:"
+check_command gcc
+check_command clang
+check_command llvm-nm
+check_command llc
+check_command make
+
+echo ""
+echo "Required headers:"
+check_header bpf/bpf.h
+check_header bpf/libbpf.h
+check_header xdp/libxdp.h
+
+# Check optional commands
+echo ""
+echo "Optional commands:"
+check_command ip
+check_command bpftool
+
+echo ""
+if [ $ERRORS -gt 0 ]; then
+    echo "ERROR: $ERRORS required dependencies missing"
+    echo ""
+    echo "Install dependencies with:"
+    echo "  sudo apt install build-essential clang llvm libelf-dev libbpf-dev libxdp-dev zstd gcc-multilib pkg-config iproute2"
+    exit 1
+else
+    echo "All required dependencies found!"
+    exit 0
+fi
