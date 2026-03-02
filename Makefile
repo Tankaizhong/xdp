@@ -10,9 +10,17 @@ COMMON_DIR := ./src/common
 CC ?= gcc
 CLANG ?= clang
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
+ARCH_INC := $(shell uname -m | sed 's/x86_64/x86_64-linux-gnu/;s/aarch64/aarch64-linux-gnu/')
 
 CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I/usr/include/bpf
 LDFLAGS := -lxdp -lbpf -lelf -lz
+
+# BPF compilation flags - include architecture-specific headers
+BPF_CFLAGS := -target bpf -D__TARGET_ARCH_$(ARCH) \
+	-I$(COMMON_DIR) \
+	-I/usr/include \
+	-I/usr/include/$(ARCH_INC) \
+	-O2 -g
 
 # Targets
 USER_TARGETS := xdp_user af_xdp_user
@@ -49,10 +57,7 @@ af_xdp_user: $(SRC_DIR)/main/af_xdp_user
 
 # BPF kernel program
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(CLANG) -target bpf -D__TARGET_ARCH_$(ARCH) \
-		-I$(COMMON_DIR) \
-		-I/usr/include \
-		-O2 -c -g -o $@ $<
+	$(CLANG) $(BPF_CFLAGS) -c -o $@ $<
 
 clean:
 	rm -f $(USER_TARGETS) xdp_kern.o

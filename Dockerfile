@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     linux-libc-dev \
     clang \
     llvm \
+    gcc-multilib \
     libelf-dev \
     libpcap-dev \
     libbpf-dev \
