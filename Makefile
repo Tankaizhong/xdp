@@ -6,7 +6,6 @@
 SRC_DIR := ./src
 BPF_DIR := ./bpf
 COMMON_DIR := ./src/common
-LIB_DIR := ./lib
 
 # Compiler settings
 CC ?= gcc
