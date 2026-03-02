@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -30,6 +28,8 @@ jobs:
             libpcap-dev \
             libbpf-dev \
             libxdp-dev \
+            zstd \
+            gcc-multilib \
             pkg-config
 
       - name: Build
