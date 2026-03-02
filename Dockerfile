@@ -13,7 +13,6 @@ RUN sed -i 's/[a-z.]*archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt
 RUN apt-get update && apt-get install -y \
     build-essential \
     libc6-dev \
-    linux-libc-dev \
     clang \
     llvm \
     libelf-dev \
