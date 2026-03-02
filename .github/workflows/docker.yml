@@ -37,6 +37,7 @@ jobs:
             libbpf-dev \
             libxdp-dev \
             zstd \
+            gcc-multilib \
             pkg-config \
             iproute2 \
             git \
