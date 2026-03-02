@@ -362,11 +362,13 @@ int main(int argc, char *argv[])
 
     /* 添加默认转发规则 */
     if (add_rule) {
-        __u8 default_mac[ETH_ALEN] = {0x00, 0x0c, 0x29, 0xc4, 0xd0, 0x25};
-        __u32 dst_ip = inet_addr("192.168.1.100");
+        // 测试环境：192.168.88.10 -> 192.168.88.20
+        __u8 default_mac[ETH_ALEN] = {0x56, 0xa6, 0x09, 0xd7, 0xd0, 0x10};  // veth1 MAC
+        __u32 dst_ip = inet_addr("192.168.88.20");  // veth1 IP
 
-        add_flow_rule(inet_addr("192.168.1.10"), inet_addr("192.168.1.20"),
-                      8080, 80, IPPROTO_TCP, default_mac, dst_ip, XDP_ACTION_TX);
+        // 转发所有 TCP 流量
+        add_flow_rule(inet_addr("0.0.0.0"), inet_addr("192.168.88.10"),
+                      0, 80, IPPROTO_TCP, default_mac, dst_ip, XDP_ACTION_TX);
     }
 
     /* 显示统计信息 */
