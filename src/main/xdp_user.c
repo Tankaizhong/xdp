@@ -83,6 +83,8 @@ static int ifindex = -1;
 static int prog_fd = -1;
 static int map_fd = -1;
 static int stats_fd = -1;
+static int vip_fd = -1;
+static int lb_counter_fd = -1;
 static struct xdp_program *xdp_prog = NULL;
 static struct bpf_object *bpf_obj = NULL;
 static int skb_mode = 0;
@@ -93,6 +95,49 @@ static void signal_handler(int sig)
 {
     (void)sig;
     running = 0;
+}
+
+/* 添加 VIP 和后端服务器 */
+static int add_vip_backend(__u32 vip_ip, __u16 vip_port, __u8 proto,
+                          __u32 backend_ip, __u16 backend_port,
+                          __u8 *backend_mac, __u8 lb_algo)
+{
+    struct vip_key vip_key = {0};
+    struct vip_info vip_info = {0};
+
+    if (vip_fd < 0) {
+        fprintf(stderr, "Error: VIP map not initialized\n");
+        return -1;
+    }
+
+    vip_key.vip = vip_ip;
+    vip_key.port = vip_port;
+    vip_key.proto = proto;
+
+    /* 设置后端信息 */
+    vip_info.backends[0].ip = backend_ip;
+    vip_info.backends[0].port = backend_port;
+    memcpy(vip_info.backends[0].mac, backend_mac, ETH_ALEN);
+    vip_info.backends[0].enabled = 1;
+    vip_info.backends[0].weight = 1;
+    vip_info.backend_count = 1;
+    vip_info.lb_algorithm = lb_algo;
+
+    if (bpf_map_update_elem(vip_fd, &vip_key, &vip_info, BPF_ANY) < 0) {
+        fprintf(stderr, "Error: Failed to add VIP: %s\n", strerror(errno));
+        return -1;
+    }
+
+    char vip_str[INET_ADDRSTRLEN], backend_str[INET_ADDRSTRLEN];
+    struct in_addr v = { .s_addr = vip_ip };
+    struct in_addr b = { .s_addr = backend_ip };
+    inet_ntop(AF_INET, &v, vip_str, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &b, backend_str, INET_ADDRSTRLEN);
+
+    printf("[+] Added VIP: %s:%d -> Backend: %s:%d (algorithm: %d)\n",
+           vip_str, vip_port, backend_str, backend_port, lb_algo);
+
+    return 0;
 }
 
 /* 查找 map fd */
@@ -251,8 +296,19 @@ static int attach_xdp(const char *ifname)
         return -1;
     }
 
-    printf("[+] Got program fd: %d, map_fd: %d, stats_fd: %d\n",
-           prog_fd, map_fd, stats_fd);
+    /* 获取负载均衡相关 map */
+    vip_fd = find_map_fd(bpf_obj, "vip_map");
+    if (vip_fd < 0) {
+        fprintf(stderr, "Warning: VIP map not found, using flow_table mode\n");
+    }
+
+    lb_counter_fd = find_map_fd(bpf_obj, "lb_counters");
+    if (lb_counter_fd < 0) {
+        fprintf(stderr, "Warning: lb_counters not found\n");
+    }
+
+    printf("[+] Got program fd: %d, map_fd: %d, stats_fd: %d, vip_fd: %d\n",
+           prog_fd, map_fd, stats_fd, vip_fd);
 
     return 0;
 }
@@ -355,9 +411,17 @@ static void show_help(const char *prog)
     printf("  -r            Run in daemon mode\n");
     printf("  -s            Show statistics\n");
     printf("  -f            Show flow table\n");
-    printf("  -a            Add default flow rule\n");
+    printf("  -a            Add load balancing rule\n");
+    printf("  -V <ip>       VIP IP address (default: auto-detect)\n");
+    printf("  -P <port>     VIP port (default: 80)\n");
+    printf("  -b <ip>       Backend IP address\n");
+    printf("  -p <port>     Backend port (default: 8080)\n");
+    printf("  -m <mac>      Backend MAC address (xx:xx:xx:xx:xx:xx)\n");
+    printf("  -l <algo>     Load balancing algorithm (0=RR, 1=Hash, 2=LC)\n");
     printf("  -d            Delete default flow rule\n");
     printf("  -h            Show this help\n");
+    printf("\nExample:\n");
+    printf("  %s -i eth0 -a -V 192.168.88.10 -P 80 -b 192.168.88.20 -p 8080 -m 56:a6:09:d7:d0:10 -l 0\n", prog);
 }
 
 int main(int argc, char *argv[])
@@ -371,7 +435,15 @@ int main(int argc, char *argv[])
     int show_stats_flag = 0;
     int add_rule = 0;
 
-    while ((opt = getopt(argc, argv, "i:Srsfadh")) != -1) {
+    /* 负载均衡配置 */
+    __u32 vip_ip = 0;
+    __u16 vip_port = 80;
+    __u32 backend_ip = 0;
+    __u16 backend_port = 8080;
+    __u8 backend_mac[ETH_ALEN] = {0};
+    int lb_algo = LB_RR;
+
+    while ((opt = getopt(argc, argv, "i:SrsfadhV:P:b:p:m:l:")) != -1) {
         switch (opt) {
             case 'i':
                 ifname = optarg;
@@ -387,6 +459,27 @@ int main(int argc, char *argv[])
                 break;
             case 'a':
                 add_rule = 1;
+                break;
+            case 'V':
+                vip_ip = inet_addr(optarg);
+                break;
+            case 'P':
+                vip_port = atoi(optarg);
+                break;
+            case 'b':
+                backend_ip = inet_addr(optarg);
+                break;
+            case 'p':
+                backend_port = atoi(optarg);
+                break;
+            case 'm':
+                /* 解析 MAC 地址格式: xx:xx:xx:xx:xx:xx */
+                sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                       &backend_mac[0], &backend_mac[1], &backend_mac[2],
+                       &backend_mac[3], &backend_mac[4], &backend_mac[5]);
+                break;
+            case 'l':
+                lb_algo = atoi(optarg);
                 break;
             case 'h':
                 show_help(argv[0]);
@@ -414,27 +507,25 @@ int main(int argc, char *argv[])
 
     /* 添加默认转发规则 - 自动获取网卡 IP */
     if (add_rule) {
-        // 自动获取网卡 IP
-        __u32 src_ip = get_iface_ip(ifname);
-
-        if (src_ip == 0) {
-            fprintf(stderr, "Error: Failed to get IP for interface %s\n", ifname);
-            return 1;
+        // 如果没有指定 VIP IP，则自动获取网卡 IP
+        if (vip_ip == 0) {
+            vip_ip = get_iface_ip(ifname);
+            if (vip_ip == 0) {
+                fprintf(stderr, "Error: Failed to get IP for interface %s\n", ifname);
+                return 1;
+            }
         }
 
-        // 打印获取到的 IP
-        char ip_str[INET_ADDRSTRLEN];
-        struct in_addr src_addr = { .s_addr = src_ip };
-        printf("[+] Detected interface IP: %s\n", inet_ntop(AF_INET, &src_addr, ip_str, INET_ADDRSTRLEN));
-
-        // TODO: 这里需要配置后端 IP，可以通过参数指定或从配置文件读取
-        // 暂时使用原来的示例配置
-        __u8 default_mac[ETH_ALEN] = {0x56, 0xa6, 0x09, 0xd7, 0xd0, 0x10};  // 后端 MAC
-        __u32 dst_ip = inet_addr("192.168.88.20");  // 后端 IP
-
-        // 转发所有 TCP 流量
-        add_flow_rule(0, src_ip, 0, 80, IPPROTO_TCP, default_mac, dst_ip, XDP_ACTION_TX);
-        printf("[+] Added flow rule: 0.0.0.0 -> %s\n", ip_str);
+        // 如果没有指定后端 IP，使用默认配置
+        if (backend_ip == 0) {
+            // 提示用户使用参数配置后端
+            printf("[!] Please specify backend with -b <ip> -p <port> -m <mac>\n");
+            printf("[!] Example: -b 192.168.88.20 -p 8080 -m 56:a6:09:d7:d0:10\n");
+        } else {
+            // 添加 VIP 和后端
+            add_vip_backend(vip_ip, vip_port, IPPROTO_TCP,
+                          backend_ip, backend_port, backend_mac, lb_algo);
+        }
     }
 
     /* 显示统计信息 */
