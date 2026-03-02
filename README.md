@@ -129,19 +129,28 @@ XDP（Express Data Path）是 Linux 内核的一项特性，允许在网络栈�
 
 ```
 xdp/
-├── lib/
-│   ├── common/       # 公共库
-│   ├── libbpf/       # libbpf 静态库
-│   ├── libxdp/       # libxdp 静态库
-│   └── xdp-tools/    # xdp-tools（子模块）
-├── xdp_kern.c        # XDP 内核程序（在内核中运行）
-├── xdp_user.c        # XDP 控制器（用户空间）
-├── af_xdp_user.c     # AF_XDP 转发器（零拷贝模式）
-├── common.h          # 公共定义头文件
-├── deploy.sh         # 部署脚本
-├── test.sh           # 测试脚本
-└── Makefile          # 构建文件
+├── bpf/              # BPF 内核程序
+│   └── xdp_kern.c    # XDP 内核程序
+├── src/
+│   ├── main/         # 用户态程序
+│   │   ├── xdp_user.c
+│   │   └── af_xdp_user.c
+│   └── common/        # 公共库
+├── scripts/          # 脚本
+├── docs/             # 文档
+├── Makefile          # 构建文件
+└── README.md
 ```
+
+### XDP 支持的模式
+
+| 模式 | 说明 | 性能 |
+|------|------|------|
+| **Native** | 直接在网卡驱动层处理 | 最高 |
+| **SKB/Generic** | 在内核网络栈处理（兼容性好） | 较低 |
+| **HW** | 硬件卸载（需要网卡支持） | 最高 |
+
+代码会自动尝试 Native 模式，如果失败则自动回退到 SKB 模式。
 
 ### 关键文件
 
@@ -190,8 +199,8 @@ cd xdp
 # 切换到 dev 分支
 git checkout dev
 
-# 初始化子模块
-git submodule update --init --recursive
+# 安装依赖 (Debian/Ubuntu)
+sudo apt install build-essential clang llvm libelf-dev libbpf-dev libxdp-dev zstd gcc-multilib pkg-config iproute2
 
 # 编译
 make
