@@ -12,8 +12,8 @@ LIB_DIR := ./lib
 CC ?= gcc
 CLANG ?= clang
 
-CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I$(LIB_DIR)/install/include
-LDFLAGS := -lxdp -lbpf -lelf -lz
+CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I/usr/include/xdp -I/usr/include/bpf
+LDFLAGS := -lxdp -lbpf -lelf -lz -lzstd
 
 # Targets
 USER_TARGETS := xdp_user af_xdp_user
@@ -49,13 +49,12 @@ $(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # BPF kernel program
-# Use xdp-tools and libbpf headers, add arch include
+# Use system libbpf headers
 ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 MULTIARCH := $(shell gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
 BPF_CFLAGS := -D__TARGET_ARCH_$(ARCH) \
 	-I$(COMMON_DIR) \
-	-I$(LIB_DIR)/libbpf/src/root_include \
-	-I$(LIB_DIR)/xdp-tools/headers \
+	-I/usr/include/bpf \
 	-I/usr/include \
 	-I/usr/include/$(MULTIARCH) \
 	-O2 -g
