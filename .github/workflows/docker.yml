@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -38,13 +36,11 @@ jobs:
             libpcap-dev \
             libbpf-dev \
             libxdp-dev \
+            zstd \
             pkg-config \
             iproute2 \
             git \
             linux-libc-dev
-
-      - name: Configure
-        run: ./configure
 
       - name: Build
         run: make
