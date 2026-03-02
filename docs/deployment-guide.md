@@ -170,11 +170,11 @@ echo "vm.nr_hugepages=128" | sudo tee -a /etc/sysctl.d/99-xdp.conf
 git clone https://github.com/Tankaizhong/xdp.git
 cd xdp
 
-# 切换到 dev 分支
-git checkout dev
+# 安装依赖
+sudo apt install build-essential clang llvm libelf-dev libbpf-dev libxdp-dev zstd gcc-multilib pkg-config iproute2
 
-# 初始化子模块
-git submodule update --init --recursive
+# 检查环境依赖
+./configure
 
 # 编译
 make
