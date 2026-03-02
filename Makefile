@@ -5,13 +5,13 @@
 SRC_DIR := ./src
 BPF_DIR := ./bpf
 COMMON_DIR := ./src/common
+LIB_DIR := ./lib
 
-# Compiler settings (use system libbpf)
+# Compiler settings
 CC ?= gcc
 CLANG ?= clang
-ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 
-CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I/usr/include/bpf
+CFLAGS := -Wall -O2 -g -I$(COMMON_DIR)
 LDFLAGS := -lxdp -lbpf -lelf -lz
 
 # Targets
@@ -49,8 +49,12 @@ af_xdp_user: $(SRC_DIR)/main/af_xdp_user
 
 # BPF kernel program
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(CLANG) -target bpf -D__TARGET_ARCH_$(ARCH) \
+	$(CLANG) -target bpf -D__TARGET_ARCH_$$(uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
 		-I$(COMMON_DIR) \
+		-I$(LIB_DIR)/xdp-tools/headers \
+		-I$(LIB_DIR)/xdp-tools/headers/linux \
+		-I$(LIB_DIR)/xdp-tools/headers/bpf \
+		-I$(LIB_DIR)/xdp-tools/headers/xdp \
 		-I/usr/include \
 		-O2 -c -g -o $@ $<
 
@@ -65,8 +69,10 @@ rebuild: clean all
 install: all
 	install -m 0755 xdp_user /usr/local/bin/
 	install -m 0755 af_xdp_user /usr/local/bin/
+	install -m 0644 xdp_kern.o /usr/local/lib/bpf/ 2>/dev/null || true
 
 help:
 	@echo "XDP Cluster Forwarding Project"
+	@echo "Targets: all, clean, rebuild, install"
 
 .PHONY: all clean rebuild install help
