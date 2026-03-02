@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     libpcap-dev \
     libbpf-dev \
     libxdp-dev \
+    zstd \
+    gcc-multilib \
     pkg-config \
     iproute2 \
     git \
@@ -31,11 +33,6 @@ COPY . .
 
 # Fix shell script line endings
 RUN find . -name "*.sh" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
-
-# Initialize git submodules
-RUN if [ -f .gitmodules ]; then \
-        git submodule update --init --recursive; \
-    fi
 
 # Build project
 RUN make clean || true
