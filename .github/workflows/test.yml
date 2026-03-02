@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -34,11 +34,7 @@ jobs:
             gcc-multilib \
             pkg-config \
             iproute2 \
-            git \
-            linux-libc-dev
-
-      - name: Configure
-        run: ./configure
+            git
 
       - name: Build
         run: make
