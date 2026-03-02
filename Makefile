@@ -9,6 +9,7 @@ COMMON_DIR := ./src/common
 # Compiler settings (use system libbpf)
 CC ?= gcc
 CLANG ?= clang
+ARCH := $(shell uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/')
 
 CFLAGS := -Wall -O2 -g -I$(COMMON_DIR) -I/usr/include/bpf
 LDFLAGS := -lxdp -lbpf -lelf -lz
@@ -46,9 +47,9 @@ xdp_user: $(SRC_DIR)/main/xdp_user
 af_xdp_user: $(SRC_DIR)/main/af_xdp_user
 	ln -sf $< $@
 
-# BPF kernel program (use system headers via pkg-config or defaults)
+# BPF kernel program
 xdp_kern.o: $(BPF_DIR)/xdp_kern.c
-	$(CLANG) -target bpf -D__TARGET_ARCH_$$(uname -m | sed 's/x86_64/x86/;s/aarch64/arm64/') \
+	$(CLANG) -target bpf -D__TARGET_ARCH_$(ARCH) \
 		-I$(COMMON_DIR) \
 		-I/usr/include \
 		-O2 -c -g -o $@ $<
@@ -67,6 +68,5 @@ install: all
 
 help:
 	@echo "XDP Cluster Forwarding Project"
-	@echo "Targets: all, clean, rebuild, install"
 
 .PHONY: all clean rebuild install help
