@@ -7,3 +7,4 @@ af_xdp_user
 xdp_controller
 af_xdp_forwarder
 xdp_kern.oconfig.mk
+lib/xdp-tools/
