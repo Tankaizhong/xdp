@@ -10,12 +10,64 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <linux/if_link.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <arpa/inet.h>
 #include <bpf/libbpf.h>
 #include <xdp/libxdp.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
 #include "common.h"
+
+/* 获取网卡 IP 地址 */
+static __u32 get_iface_ip(const char *ifname)
+{
+    struct ifaddrs *ifaddr, *ifa;
+    __u32 ip = 0;
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        return 0;
+    }
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            if (strcmp(ifa->ifa_name, ifname) == 0) {
+                struct sockaddr_in *addr = (struct sockaddr_in *)ifa->ifa_addr;
+                ip = addr->sin_addr.s_addr;
+                break;
+            }
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return ip;
+}
+
+/* 获取网卡 MAC 地址 */
+static int get_iface_mac(const char *ifname, __u8 *mac)
+{
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0)
+        return -1;
+
+    struct ifreq ifr;
+    strncpy(ifr.ifr_name, ifname, IFNAMSIZ-1);
+
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
+        close(sock);
+        return -1;
+    }
+
+    memcpy(mac, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+    close(sock);
+    return 0;
+}
 
 /* 禁用 libbpf 的日志输出 */
 static void disable_libbpf_log(void)
@@ -360,15 +412,29 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* 添加默认转发规则 */
+    /* 添加默认转发规则 - 自动获取网卡 IP */
     if (add_rule) {
-        // 测试环境：192.168.88.10 -> 192.168.88.20
-        __u8 default_mac[ETH_ALEN] = {0x56, 0xa6, 0x09, 0xd7, 0xd0, 0x10};  // veth1 MAC
-        __u32 dst_ip = inet_addr("192.168.88.20");  // veth1 IP
+        // 自动获取网卡 IP
+        __u32 src_ip = get_iface_ip(ifname);
+
+        if (src_ip == 0) {
+            fprintf(stderr, "Error: Failed to get IP for interface %s\n", ifname);
+            return 1;
+        }
+
+        // 打印获取到的 IP
+        char ip_str[INET_ADDRSTRLEN];
+        struct in_addr src_addr = { .s_addr = src_ip };
+        printf("[+] Detected interface IP: %s\n", inet_ntop(AF_INET, &src_addr, ip_str, INET_ADDRSTRLEN));
+
+        // TODO: 这里需要配置后端 IP，可以通过参数指定或从配置文件读取
+        // 暂时使用原来的示例配置
+        __u8 default_mac[ETH_ALEN] = {0x56, 0xa6, 0x09, 0xd7, 0xd0, 0x10};  // 后端 MAC
+        __u32 dst_ip = inet_addr("192.168.88.20");  // 后端 IP
 
         // 转发所有 TCP 流量
-        add_flow_rule(inet_addr("0.0.0.0"), inet_addr("192.168.88.10"),
-                      0, 80, IPPROTO_TCP, default_mac, dst_ip, XDP_ACTION_TX);
+        add_flow_rule(0, src_ip, 0, 80, IPPROTO_TCP, default_mac, dst_ip, XDP_ACTION_TX);
+        printf("[+] Added flow rule: 0.0.0.0 -> %s\n", ip_str);
     }
 
     /* 显示统计信息 */
