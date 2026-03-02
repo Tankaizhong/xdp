@@ -35,6 +35,9 @@ jobs:
             git \
             linux-libc-dev
 
+      - name: Check dependencies
+        run: ./configure
+
       - name: Build
         run: make
 
