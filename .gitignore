@@ -1,9 +1,28 @@
-.claude/
-.vscode/
+# Build outputs
 *.o
 *.so
+*.a
+*.log
+
+# Binaries
 xdp_user
 af_xdp_user
 xdp_controller
 af_xdp_forwarder
-xdp_kern.oconfig.mk
+
+# Config
+config.mk
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
+
+# Editor
+*.swp
+*~
+
+# OS
+.DS_Store
