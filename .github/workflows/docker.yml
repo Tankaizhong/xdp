@@ -25,6 +25,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
+            linux-libc-dev
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
@@ -41,6 +42,7 @@ jobs:
             pkg-config \
             iproute2 \
             git
+            linux-libc-dev
 
       - name: Build
         run: make
@@ -53,6 +55,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+            linux-libc-dev
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -64,11 +67,13 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
+            linux-libc-dev
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           load: true
 
       - name: Test Docker image
         if: github.event_name != 'pull_request'
+            linux-libc-dev
         run: |
           docker run --rm --privileged ${{ steps.meta.outputs.tags }} ip link show || true
