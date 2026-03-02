@@ -196,9 +196,6 @@ sudo dnf install make gcc clang llvm libelf-devel iproute2 git pkg-config
 git clone https://github.com/Tankaizhong/xdp.git
 cd xdp
 
-# 切换到 dev 分支
-git checkout dev
-
 # 安装依赖 (Debian/Ubuntu)
 sudo apt install build-essential clang llvm libelf-dev libbpf-dev libxdp-dev zstd gcc-multilib pkg-config iproute2
 
