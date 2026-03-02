@@ -199,6 +199,9 @@ cd xdp
 # 安装依赖 (Debian/Ubuntu)
 sudo apt install build-essential clang llvm libelf-dev libbpf-dev libxdp-dev zstd gcc-multilib pkg-config iproute2
 
+# 检查环境依赖
+./configure
+
 # 编译
 make
 ```
